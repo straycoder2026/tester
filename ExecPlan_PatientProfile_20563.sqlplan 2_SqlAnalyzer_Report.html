@@ -1,0 +1,1184 @@
+﻿<!doctype html><html><head><meta charset='utf-8'><title>SQL Analyzer Report</title><style>body{font-family:Segoe UI,Arial;margin:32px;color:#172033;line-height:1.4}h1{margin-bottom:4px}.subtitle{color:#526070;margin-bottom:24px}.card{border:1px solid #cbd5e1;border-radius:8px;padding:16px;margin:16px 0}.decision{font-size:18px;font-weight:700}table{border-collapse:collapse;width:100%;margin:12px 0 28px}th,td{border:1px solid #cbd5e1;padding:8px;vertical-align:top}th{background:#e8eef7;text-align:left}.Critical{background:#ffd7d7}.High{background:#ffe7cc}.Medium{background:#fff3c9}.Low{background:#edf4ff}.FixNow{font-weight:700;color:#a00000}.PlannedFix{font-weight:700;color:#8a5a00}.good{background:#e2f3e5}.bad{background:#ffdddd}.muted{color:#687386}</style></head><body><h1>SQL Analyzer – Performance and Bottleneck Assessment</h1><div class='subtitle'>ExecPlan_PatientProfile_20563.sqlplan 2 | Actual plan | Generated 2026-08-06 14:12:19Z</div><div class='card'><h2>Executive Summary</h2><div class='decision'>Immediate remediation authorization is recommended before release.</div><table><tr><th>Measure</th><th>Result</th></tr><tr><td>Overall score</td><td><b>0/100</b></td></tr><tr><td>Critical issues</td><td><b>12</b></td></tr><tr><td>High issues</td><td><b>4</b></td></tr><tr><td>Statements requiring executive attention</td><td><b>2</b></td></tr><tr><td>Fix-now issues</td><td><b>13</b></td></tr><tr><td>Planned fixes</td><td><b>4</b></td></tr><tr><td>Plan type</td><td>Actual</td></tr></table><p>Runtime evidence is available where SQL Server recorded it.</p></div><h2>Captured Timing from the Execution Plan</h2><p class='muted'>These values are read directly from each StmtSimple/QueryPlan/QueryTimeStats element. They are the timing values actually stored in this uploaded .sqlplan file.</p><table><tr><th>Statement</th><th>Executions</th><th>Elapsed</th><th>CPU</th><th>UDF elapsed</th><th>UDF CPU</th><th>Timing source</th></tr><tr><td><b>Statement 12</b></td><td>1</td><td><b>65.66 sec (65,664 ms)</b></td><td><b>64.44 sec (64,441 ms)</b></td><td>62.57 sec (62,571 ms)</td><td>61.65 sec (61,649 ms)</td><td>StmtSimple/QueryPlan/QueryTimeStats</td></tr><tr><td><b>Statement 4</b></td><td>1</td><td><b>1.05 sec (1,051 ms)</b></td><td><b>1.0 ms</b></td><td>0 ms</td><td>0 ms</td><td>StmtSimple/QueryPlan/QueryTimeStats</td></tr><tr><td><b>Statement 6</b></td><td>1</td><td><b>154.0 ms</b></td><td><b>301.0 ms</b></td><td>0 ms</td><td>0 ms</td><td>StmtSimple/QueryPlan/QueryTimeStats</td></tr><tr><td><b>Statement 2</b></td><td>0</td><td><b>0 ms</b></td><td><b>0 ms</b></td><td>0 ms</td><td>0 ms</td><td>StmtSimple/QueryPlan/QueryTimeStats</td></tr><tr><td><b>Statement 8</b></td><td>1</td><td><b>0 ms</b></td><td><b>0 ms</b></td><td>0 ms</td><td>0 ms</td><td>StmtSimple/QueryPlan/QueryTimeStats</td></tr><tr><td><b>Statement 10</b></td><td>1</td><td><b>0 ms</b></td><td><b>0 ms</b></td><td>0 ms</td><td>0 ms</td><td>StmtSimple/QueryPlan/QueryTimeStats</td></tr><tr class='good'><td><b>Sum of captured statements</b></td><td>—</td><td><b>66.87 sec (66,869 ms)</b></td><td><b>64.74 sec (64,743 ms)</b></td><td colspan='3'>This sum is not a guaranteed stored-procedure wall-clock duration because statements and parallel CPU can overlap.</td></tr></table><h2>Statement Resource Consumption Ranking</h2><p class='muted'>This table identifies which SQL statement consumed the most elapsed time, CPU, logical reads and estimated optimizer cost. Statement-level metrics are preferred over node-level metrics for executive interpretation.</p><table><tr><th>Rank</th><th>Statement / procedure line</th><th>Executions</th><th>Elapsed time per captured execution</th><th>CPU</th><th>Logical reads</th><th>Estimated cost</th><th>Resource assessment</th><th>Critical / high issues</th></tr><tr class='High'><td><b>#1</b></td><td><b>Statement 12</b><br>Procedure line 197<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+  …</code></td><td><b>1</b></td><td><b>65.66 sec (65,664 ms)</b><br>98.2% of captured statement elapsed time</td><td><b>64,441.0 ms</b><br>99.5% of captured statement CPU</td><td><b>498,795</b><br>82.6% of captured logical reads</td><td><b>199.3480</b><br>65.8% of total statement cost</td><td>Highest overall resource-consuming statement. Dominates captured elapsed time. Dominates captured CPU consumption. Dominates logical I/O. Dominates optimizer-estimated cost.</td><td>14 critical/high; 12 fix-now; 14 total</td></tr><tr class=''><td><b>#2</b></td><td><b>Statement 4</b><br>Procedure line 99<br><code>SELECT 
+            @li_Pat_ComplianceFlag = ISNULL(CONVERT(SMALLINT, dbo.f_PreferenceRetrieve(&#39;PAT&#39;, @patientid, &#39;P16&#39;)), 0),
+            @LastName = lastname,
+            @FirstName = firstname,
+            @patient_keyfieldmodified = keyfieldmodified,   -- SQA 17768
+            @ls_phn = provinci…</code></td><td><b>1</b></td><td><b>1.05 sec (1,051 ms)</b><br>1.6% of captured statement elapsed time</td><td><b>1.0 ms</b><br>0.0% of captured statement CPU</td><td><b>7</b><br>0.0% of captured logical reads</td><td><b>0.0099</b><br>0.0% of total statement cost</td><td>Resource use is distributed; review together with issue severity.</td><td>0 critical/high; 0 fix-now; 0 total</td></tr><tr class='Medium'><td><b>#3</b></td><td><b>Statement 6</b><br>Procedure line 132<br><code>SELECT MAX(p.id) AS rxid
+        INTO #temprx
+        FROM dbo.prescription p
+        INNER JOIN dbo.prescriptionextended pe ON p.id = pe.RxId
+        WHERE p.patientid = @patientid
+          AND (AutoFillFlag IN (0, -1, 2) OR (AutoFillFlag = 1 AND (p.[Status] &lt;&gt; &#39;INC&#39; OR p.wb_Status = &#39;PEN&#39;)))
+    …</code></td><td><b>1</b></td><td><b>154.0 ms</b><br>0.2% of captured statement elapsed time</td><td><b>301.0 ms</b><br>0.5% of captured statement CPU</td><td><b>104,827</b><br>17.4% of captured logical reads</td><td><b>103.4370</b><br>34.2% of total statement cost</td><td>Major optimizer-cost contributor.</td><td>2 critical/high; 1 fix-now; 2 total</td></tr><tr class=''><td><b>#4</b></td><td><b>Statement 8</b><br>Procedure line not mapped.<br><code>insert [#temprx_____________________________________________________________________________________________________________000000001329] select *, %%bmk%% from [#temprx_____________________________________________________________________________________________________________000000001329] option (…</code></td><td><b>1</b></td><td><b>0 ms</b><br>0.0% of captured statement elapsed time</td><td><b>0.0 ms</b><br>0.0% of captured statement CPU</td><td><b>3</b><br>0.0% of captured logical reads</td><td><b>0.0298</b><br>0.0% of total statement cost</td><td>Resource use is distributed; review together with issue severity.</td><td>0 critical/high; 0 fix-now; 1 total</td></tr><tr class=''><td><b>#5</b></td><td><b>Statement 10</b><br>Procedure line 148<br><code>SELECT MAX(id) AS id
+        INTO #TEMPEXT
+        FROM dbo.externalprofile
+        WHERE patientid = @patientid
+          AND deletedflag = 0
+        GROUP BY drugid</code></td><td><b>1</b></td><td><b>0 ms</b><br>0.0% of captured statement elapsed time</td><td><b>0.0 ms</b><br>0.0% of captured statement CPU</td><td><b>2</b><br>0.0% of captured logical reads</td><td><b>0.0279</b><br>0.0% of total statement cost</td><td>Resource use is distributed; review together with issue severity.</td><td>0 critical/high; 0 fix-now; 0 total</td></tr><tr class=''><td><b>#6</b></td><td><b>Statement 2</b><br>Procedure line 89<br><code>IF EXISTS (SELECT 1 FROM Preference WHERE Code = &#39;DOP&#39; AND SValue = &#39;1&#39;)</code></td><td><b>0</b></td><td><b>0 ms</b><br>0.0% of captured statement elapsed time</td><td><b>0.0 ms</b><br>0.0% of captured statement CPU</td><td><b>4</b><br>0.0% of captured logical reads</td><td><b>0.0066</b><br>0.0% of total statement cost</td><td>Resource use is distributed; review together with issue severity.</td><td>0 critical/high; 0 fix-now; 0 total</td></tr></table><div class='card'><h3>Primary Resource-Consuming Statement</h3><p><b>Statement 12</b> is ranked first. It executed 1 time(s) and consumed 65.66 sec (65,664 ms) elapsed time, 64,441.0 ms CPU and 498,795 logical reads in the captured execution.</p></div><h2>Dominant Runtime Drivers</h2><p class='muted'>This table uses measured actual-plan runtime. It separates total statement duration from the operator/function that consumed most of that duration.</p><table><tr><th>Statement</th><th>Statement execution</th><th>Dominant operator / function</th><th>Driver time</th><th>Executions</th><th>Logical reads</th><th>Share of statement time</th></tr><tr><td><b>Statement 12</b><br>Procedure line 197</td><td>1 execution(s)<br><b>65.66 sec (65,664 ms)</b> elapsed<br>64.44 sec (64,441 ms) CPU</td><td><b>Sort (root pipeline timing; not isolated cause)</b><br>Sort; Node 0</td><td><b>65.40 sec (65,404 ms)</b><br>64.43 sec (64,430 ms) CPU</td><td>1</td><td>0</td><td>99.6%</td></tr><tr><td><b>Statement 6</b><br>Procedure line 132</td><td>1 execution(s)<br><b>154.0 ms</b> elapsed<br>301.0 ms CPU</td><td><b>Parallelism (root pipeline timing; not isolated cause)</b><br>Parallelism; Node 0</td><td><b>153.0 ms</b><br>0 ms CPU</td><td>1</td><td>0</td><td>99.4%</td></tr></table><h2>Executive Critical and High Issues by SQL Statement</h2><p class='muted'>One row represents one SQL statement. All related plan-node findings are consolidated below that statement so executives do not need to interpret multiple node rows.</p><table><tr><th>Statement / procedure location</th><th>Overall priority</th><th>Executions and statement time / cost</th><th>Issues caused by this statement</th><th>Consolidated fix location</th><th>Required action</th><th>Future risk</th></tr><tr class='Critical'><td><b>Statement 6</b><br>Procedure lines 132-143<br><code>SELECT MAX(p.id) AS rxid
+        INTO #temprx
+        FROM dbo.prescription p
+        INNER JOIN dbo.prescriptionextended pe ON p.id = pe.RxId
+        WHERE p.patientid = @patientid
+          AND (AutoFillFlag IN (0, -1, 2) OR (AutoFillFlag = 1 AND (p.[Status] &lt;&gt; &#39;INC&#39; OR p.wb_Status = &#39;PEN&#39;)))
+          AND (@rxnumber = 0 OR @rxnumber = p.rxnumber…</code></td><td><b>FixNow</b><br>Critical</td><td>1 execution(s); 154.0 ms elapsed, 301.0 ms CPU, 0 ms UDF elapsed, 0 ms UDF CPU and 104,827 logical reads. Source: StmtSimple/QueryPlan/QueryTimeStats.</td><td><ul><li><b>Root cardinality estimate mismatch</b>: 1 plan occurrence(s), node(s) 8; up to 30,353 execution(s).</li><li><b>Excessive rows read compared with rows returned</b>: 1 plan occurrence(s), node(s) 7; up to 2 execution(s).</li></ul></td><td>Stored procedure lines 132-143</td><td>Correct row-estimate causes: validate statistics, parameter sensitivity, skew and predicate selectivity. Make predicates SARGable and reduce unnecessary rows read.</td><td><ul><li>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</li><li>I/O and CPU will rise as the table grows.</li></ul></td></tr><tr class='Critical'><td><b>Statement 12</b><br>Procedure lines 197-201<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqautho…</code></td><td><b>FixNow</b><br>Critical</td><td>1 execution(s); 65.66 sec (65,664 ms) elapsed, 64.44 sec (64,441 ms) CPU, 62.57 sec (62,571 ms) UDF elapsed, 61.65 sec (61,649 ms) UDF CPU and 498,795 logical reads. Source: StmtSimple/QueryPlan/QueryTimeStats.</td><td><ul><li><b>Statement spilled to TempDB at 2 operator(s)</b>: 1 plan occurrence(s), node(s) 48; up to 1 execution(s).</li><li><b>Root cardinality estimate mismatch</b>: 10 plan occurrence(s), node(s) 72, 74, 76, 77, 83, 84, 92, 93, 137, 138; up to 30,738 execution(s).</li><li><b>Repeated key lookup detected</b>: 1 plan occurrence(s), node(s) 76; up to 30,738 execution(s).</li><li><b>Excessive rows read compared with rows returned</b>: 1 plan occurrence(s), node(s) 123; up to 205 execution(s).</li><li><b>One operator dominates the captured statement runtime</b>: 1 plan occurrence(s), node(s) 0; up to 1 execution(s).</li></ul></td><td>Stored procedure lines 197-201</td><td>First reduce rows before the dominant function/operator and prevent repeated early evaluation. Correct row-estimate causes: validate statistics, parameter sensitivity, skew and predicate selectivity. Then re-test memory grant and remove sort/hash spills after row reduction. Evaluate a covering access path only after the row-flow problem is corrected. Make predicates SARGable and reduce unnecessary rows read.</td><td><ul><li>Spills can create TempDB I/O, concurrency pressure and unstable response time.</li><li>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</li><li>Lookup cost grows with rows returned and can become a random-I/O bottleneck.</li><li>I/O and CPU will rise as the table grows.</li><li>The dominant operator can become a larger bottleneck as volume or concurrency increases.</li></ul></td></tr></table><h2>Executive Decision Matrix</h2><table><tr><th>Condition</th><th>Decision</th><th>Owner</th></tr><tr class='Critical'><td>One or more Fix-Now issues exist</td><td><b>Hold release and authorize immediate remediation</b></td><td>Executive sponsor, DBA lead, development lead</td></tr></table><h2>What Exactly Is Causing the Slow Statement?</h2><p class='muted'>This section distinguishes parent-statement time from UDF, filter, join, lookup, sort and spill evidence. Root operator timing is not automatically treated as causal because it can include the whole execution pipeline.</p><div class='card'><h3>Statement 12 — Critical</h3><p><b>Captured execution:</b> 1 execution(s), 65.66 sec (65,664 ms) elapsed, 64.44 sec (64,441 ms) CPU, 498,795 logical reads.</p><div class='card Critical'><h4>Primary cause</h4><ul><li><b>Nexxsys.dbo.f_GetPrevRxComplete</b>: Scalar UDF Nexxsys.dbo.f_GetPrevRxComplete is strongly implicated in the slowdown. Statement UDF share 95.3%; operator calls 30,353; operator logical reads 86,290; statement UDF elapsed 62,571 ms.</li></ul></div><table><tr><th>Status</th><th>Component</th><th>Exact SQL / location</th><th>Executions</th><th>Elapsed / CPU</th><th>What is wrong</th><th>Evidence</th><th>Fix</th></tr><tr class='Critical'><td><b>Critical</b><br>PRIMARY</td><td><b>Nexxsys.dbo.f_GetPrevRxComplete</b><br>ScalarUdf<br>Plan node 77</td><td>Stored procedure line 197; function call Nexxsys.dbo.f_GetPrevRxComplete.</td><td>30,353</td><td><b>Elapsed:</b> 58.96 sec (58,961 ms)<br><b>CPU:</b> 58.06 sec (58,063 ms)<br>Measured for the associated function operator</td><td>Scalar UDF Nexxsys.dbo.f_GetPrevRxComplete is strongly implicated in the slowdown.</td><td>Statement UDF share 95.3%; operator calls 30,353; operator logical reads 86,290; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>dbo.f_GetRefillRemaining</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 214; function call dbo.f_GetRefillRemaining.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF dbo.f_GetRefillRemaining is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>dbo.f_DrugNameWithInd_bc</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 258; function call dbo.f_DrugNameWithInd_bc.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>dbo.f_DrugNameWithInd_bc(p.id, p.drugid, @li_DrugNameIndicator, DEFAULT)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF dbo.f_DrugNameWithInd_bc is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>dbo.f_DrugNameWithInd</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 258; function call dbo.f_DrugNameWithInd.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>dbo.f_DrugNameWithInd_bc(p.id, p.drugid, @li_DrugNameIndicator, DEFAULT)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF dbo.f_DrugNameWithInd is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>dbo.f_formatDoctorName</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 261; function call dbo.f_formatDoctorName.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>dbo.f_formatDoctorName(ISNULL(pah.doctorpracticecode, d.practicecode),
+                                         ISNULL(pah.doctorfirstname, d.firstname),
+                                         ISNULL(pah.doctorlastname, d.lastname),
+                                         1, 
+                                         ISNULL(pah.doctorprescriberid, d.prescriberid)
+                                         , DEFAULT)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF dbo.f_formatDoctorName is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>dbo.f_PerformedOnDate</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 274; function call dbo.f_PerformedOnDate.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>dbo.f_PerformedOnDate(p.id)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF dbo.f_PerformedOnDate is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_GetRefillRemaining</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 214; function call Nexxsys.dbo.f_GetRefillRemaining.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_GetRefillRemaining is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_DrugNameWithInd_bc</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 258; function call Nexxsys.dbo.f_DrugNameWithInd_bc.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>f_DrugNameWithInd_bc(p.id, p.drugid, @li_DrugNameIndicator, DEFAULT)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_DrugNameWithInd_bc is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_DrugNameWithInd</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 258; function call Nexxsys.dbo.f_DrugNameWithInd.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>f_DrugNameWithInd_bc(p.id, p.drugid, @li_DrugNameIndicator, DEFAULT)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_DrugNameWithInd is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_formatDoctorName</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 261; function call Nexxsys.dbo.f_formatDoctorName.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>f_formatDoctorName(ISNULL(pah.doctorpracticecode, d.practicecode),
+                                         ISNULL(pah.doctorfirstname, d.firstname),
+                                         ISNULL(pah.doctorlastname, d.lastname),
+                                         1, 
+                                         ISNULL(pah.doctorprescriberid, d.prescriberid)
+                                         , DEFAULT)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_formatDoctorName is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_PerformedOnDate</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 274; function call Nexxsys.dbo.f_PerformedOnDate.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>f_PerformedOnDate(p.id)</pre></td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_PerformedOnDate is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_KeyFieldModified</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 197; function call Nexxsys.dbo.f_KeyFieldModified.</td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_KeyFieldModified is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_Autofill_DisplayIndicator_Profile</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 197; function call Nexxsys.dbo.f_Autofill_DisplayIndicator_Profile.</td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_Autofill_DisplayIndicator_Profile is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_geturgentflagsign</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 197; function call Nexxsys.dbo.f_geturgentflagsign.</td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_geturgentflagsign is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nexxsys.dbo.f_IsMethadoneOrMethadoseById</b><br>ScalarUdf<br>Plan node 2</td><td>Stored procedure line 197; function call Nexxsys.dbo.f_IsMethadoneOrMethadoseById.</td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 62.571 sec elapsed and 61.649 sec CPU.</td><td>Scalar UDF Nexxsys.dbo.f_IsMethadoneOrMethadoseById is called by this statement.</td><td>Statement UDF share 95.3%; operator calls 1; operator logical reads 0; statement UDF elapsed 62,571 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr><tr class='High'><td><b>High</b></td><td><b>Sort / ORDER BY</b><br>Spill<br>Plan node 0</td><td>Stored procedure line 197; ORDER BY / sorting requirement.</td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Root Sort timing overlaps the entire statement pipeline and is not treated as independent sort time.</td><td>Sort spilled to TempDB at 2 operator(s).</td><td>Node 0; spill count 2; estimated rows 18; actual rows 252.</td><td>Correct row estimates and reduce rows before sorting; check whether an index can provide the required order. Re-test the memory grant and spill.</td></tr><tr class='High'><td><b>High</b></td><td><b>WHERE filtering</b><br>Filter<br>Plan node 123</td><td>Stored procedure line 197; WHERE filtering clause.</td><td>205</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Filter time is included in the parent statement and is not independently isolated.</td><td>Filtering read 205 rows to return 1.</td><td>Object Prescription; index PK__Prescrip__3214EC07589FC084; predicate [Nexxsys].[dbo].[Prescription].[Id] as [fp].[Id].</td><td>Rewrite non-SARGable predicates, improve selectivity and review index key order.</td></tr><tr class='High'><td><b>High</b></td><td><b>Lookup: PrescriptionAuditHistory</b><br>Lookup<br>Plan node 76</td><td>Stored procedure line 197; SELECT columns requiring lookup on PrescriptionAuditHistory.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                --f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc /*SQA 17943*/,
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,  
+                pe.RefusalToFillFlag AS IsBCRefusalToFill,/*SQA 17943*/
+                p.authorizationstatus,
+                p.intervaldays,
+                p.methodofauthorization,
+                p.reasonforusecode,
+                p.ltcnumber,
+                p.labelcopies,
+                p.drugnameindicator,
+                p.rebillflag,
+                p.qtybreakdownflag,
+                p.shrinkprintflag,
+                p.labelnote,
+                p.authorizationdate,
+                p.entereduserid,
+                p.dispenseduserid,
+                p.wb_status,
+                p.wb_date,
+                p.filltype,
+                p.enteredtimestamp,
+                p.urgentflag,
+                p.dialogueflag,
+                p.deliverflag,
+                p.grouprxstatuscode,
+                p.doctoraddresstype,
+                --SQA 9158
+                (CASE 
+                    WHEN @isbc = 1 
+                    THEN dbo.f_DrugNameWithInd_bc(p.id, p.drugid, @li_DrugNameIndicator, DEFAULT)
+                    ELSE dbo.f_DrugNameWithInd(p.drugid, @li_DrugNameIndicator, DEFAULT)
+                 END) AS drugname,  -- SQA 17043
+                dbo.f_formatDoctorName(ISNULL(pah.doctorpracticecode, d.practicecode),
+                                         ISNULL(pah.doctorfirstname, d.firstname),
+                                         ISNULL(pah.doctorlastname, d.lastname),
+                                         1, 
+                                         ISNULL(pah.doctorprescriberid, d.prescriberid)
+                                         , DEFAULT) AS doctorname,
+                ISNULL(pah.doctorpracticecode, d.practicecode) AS practicecode,             -- SQA 17043
+                ISNULL(pah.druggenericname, v.genericname) AS genericname,                  -- SQA 17043
+                ISNULL(pah.drugtradename, v.tradename) AS tradename,                        -- SQA 17043
+                ISNULL(pah.drugmanufacturercode, v.manufacturercode) AS manufacturercode,   -- SQA 17043
+                ISNULL(pah.drugstrength, v.strength) AS strength,                           -- SQA 17043
+                ISNULL(pah.drugform, v.form) AS form,                                       -- SQA 17043
+                0 AS OTCflag,
+                dbo.f_PerformedOnDate(p.id) AS Performed_On_Date,
+                v.MixtureFlag,
+                p.admintimes,
+                (CASE WHEN ISNULL(p.dossetfla</pre></td><td>30,738</td><td><b>Elapsed:</b> 118.0 ms<br><b>CPU:</b> 118.0 ms<br>Lookup operator counters captured.</td><td>Repeated lookup executed 30,738 times.</td><td>Object PrescriptionAuditHistory; index ; rows 29,893; reads 30,738.</td><td>Review whether a covering index or fewer selected columns can remove the lookup.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nested Loops join</b><br>Join<br>Plan node 73</td><td>Stored procedure line 197; JOIN and ON clause.</td><td>30,353</td><td><b>Elapsed:</b> 385.0 ms<br><b>CPU:</b> 381.0 ms<br>Join operator counters captured.</td><td>Join cardinality mismatch is 29,893.0x.</td><td>Estimated rows 1; actual rows 29,893.</td><td>Review join predicates, statistics, parameter sensitivity and data skew.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nested Loops join</b><br>Join<br>Plan node 136</td><td>Stored procedure line 197; JOIN and ON clause.</td><td>252</td><td><b>Elapsed:</b> 12.0 ms<br><b>CPU:</b> 12.0 ms<br>Join operator counters captured.</td><td>Join cardinality mismatch is 757.3x.</td><td>Estimated rows 2; actual rows 1,882.</td><td>Review join predicates, statistics, parameter sensitivity and data skew.</td></tr><tr class='High'><td><b>High</b></td><td><b>Nested Loops join</b><br>Join<br>Plan node 88</td><td>Stored procedure line 197; JOIN and ON clause.</td><td>238</td><td><b>Elapsed:</b> 1.0 ms<br><b>CPU:</b> 1.0 ms<br>Join operator counters captured.</td><td>Join cardinality mismatch is 238.0x.</td><td>Estimated rows 1; actual rows 238.</td><td>Review join predicates, statistics, parameter sensitivity and data skew.</td></tr></table></div><div class='card'><h3>Statement 4 — Review</h3><p><b>Captured execution:</b> 1 execution(s), 1.05 sec (1,051 ms) elapsed, 1.0 ms CPU, 7 logical reads.</p><div class='card'><h4>Primary cause</h4><p>No single component could be proven as the dominant cause. Review the component evidence below.</p></div><table><tr><th>Status</th><th>Component</th><th>Exact SQL / location</th><th>Executions</th><th>Elapsed / CPU</th><th>What is wrong</th><th>Evidence</th><th>Fix</th></tr><tr class='Medium'><td><b>Review</b></td><td><b>dbo.f_PreferenceRetrieve</b><br>ScalarUdf<br></td><td>Stored procedure line 100; function call dbo.f_PreferenceRetrieve.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>dbo.f_PreferenceRetrieve(&#39;PAT&#39;, @patientid, &#39;P16&#39;)</pre></td><td>0</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Per-function time is not isolated. Statement aggregate UDF time is 0.0 ms elapsed and 0.0 ms CPU.</td><td>Scalar UDF dbo.f_PreferenceRetrieve is called by this statement.</td><td>Statement UDF share 0.0%; operator calls 0; operator logical reads 0; statement UDF elapsed 0 ms.</td><td>Reduce rows before this function is evaluated. Review an inline or set-based rewrite and avoid repeated row-by-row scalar execution.</td></tr></table></div><div class='card'><h3>Statement 6 — Acceptable</h3><p><b>Captured execution:</b> 1 execution(s), 154.0 ms elapsed, 301.0 ms CPU, 104,827 logical reads.</p><div class='card'><h4>Primary cause</h4><p>No single component could be proven as the dominant cause. Review the component evidence below.</p></div><table><tr><th>Status</th><th>Component</th><th>Exact SQL / location</th><th>Executions</th><th>Elapsed / CPU</th><th>What is wrong</th><th>Evidence</th><th>Fix</th></tr><tr class='High'><td><b>High</b></td><td><b>WHERE filtering</b><br>Filter<br>Plan node 7</td><td>Stored procedure line 136; WHERE filtering clause.<pre style='white-space:pre-wrap;max-width:700px;background:#f7f9fc;border:1px solid #cbd5e1;padding:10px;border-radius:5px;'>WHERE p.patientid = @patientid</pre></td><td>2</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Filter time is included in the parent statement and is not independently isolated.</td><td>Filtering read 1,082,682 rows to return 30,353.</td><td>Object Prescription; index idx_Prescription_Status; predicate [Nexxsys].[dbo].[Prescription].[PatientId] as [p].[PatientId]=[@patientid] AND ([@rxnumber]=(0) OR [@rxnumber]=[Nexxsys].[dbo].[Prescription].[RxNumber] as [p].[RxNumber]).</td><td>Rewrite non-SARGable predicates, improve selectivity and review index key order.</td></tr></table></div><div class='card'><h3>Statement 2 — Acceptable</h3><p><b>Captured execution:</b> 0 execution(s), 0 ms elapsed, 0 ms CPU, 4 logical reads.</p><div class='card'><h4>Primary cause</h4><p>No single component could be proven as the dominant cause. Review the component evidence below.</p></div><table><tr><th>Status</th><th>Component</th><th>Exact SQL / location</th><th>Executions</th><th>Elapsed / CPU</th><th>What is wrong</th><th>Evidence</th><th>Fix</th></tr><tr><td colspan='8'>No component-level findings.</td></tr></table></div><div class='card'><h3>Statement 8 — Acceptable</h3><p><b>Captured execution:</b> 1 execution(s), 0 ms elapsed, 0 ms CPU, 3 logical reads.</p><div class='card'><h4>Primary cause</h4><p>No single component could be proven as the dominant cause. Review the component evidence below.</p></div><table><tr><th>Status</th><th>Component</th><th>Exact SQL / location</th><th>Executions</th><th>Elapsed / CPU</th><th>What is wrong</th><th>Evidence</th><th>Fix</th></tr><tr class='Medium'><td><b>Review</b></td><td><b>Sort / ORDER BY</b><br>Sort<br>Plan node 1</td><td>Statement 8; ORDER BY / sorting requirement.</td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Operator timing captured.</td><td>Sort operator is present.</td><td>Node 1; spill count 0; estimated rows 252; actual rows 252.</td><td>Correct row estimates and reduce rows before sorting; check whether an index can provide the required order. Re-test the memory grant and spill.</td></tr></table></div><div class='card'><h3>Statement 10 — Acceptable</h3><p><b>Captured execution:</b> 1 execution(s), 0 ms elapsed, 0 ms CPU, 2 logical reads.</p><div class='card'><h4>Primary cause</h4><p>No single component could be proven as the dominant cause. Review the component evidence below.</p></div><table><tr><th>Status</th><th>Component</th><th>Exact SQL / location</th><th>Executions</th><th>Elapsed / CPU</th><th>What is wrong</th><th>Evidence</th><th>Fix</th></tr><tr class='Medium'><td><b>Review</b></td><td><b>Sort / ORDER BY</b><br>Sort<br>Plan node 2</td><td>Stored procedure line 148; ORDER BY / sorting requirement.</td><td>1</td><td><b>Elapsed:</b> Not independently isolated<br><b>CPU:</b> Not independently isolated<br>Operator timing captured.</td><td>Sort operator is present.</td><td>Node 2; spill count 0; estimated rows 1; actual rows 0.</td><td>Correct row estimates and reduce rows before sorting; check whether an index can provide the required order. Re-test the memory grant and spill.</td></tr></table></div><h2>Exact SQL Location of Performance Problems</h2><p class='muted'>The report highlights the smallest reliable SQL fragment responsible for each problem. When no smaller fragment can be mapped safely, the complete parent query is displayed.</p><div class='card'><h3>Statement 6</h3><p><b>Statement elapsed:</b> 154.0 ms &nbsp; <b>CPU:</b> 301.0 ms &nbsp; <b>UDF elapsed:</b> 0 ms</p><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Join clause — line 139</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>INNER JOIN dbo.prescriptionextended pe ON p.id = pe.RxId</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 30,352 rows (30,352.0x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 30,352; rows read 30,353; executions 30,353; logical reads 87,231; subtree cost 88.5546; functions .</p><p><b>Impact:</b> 1 captured execution(s); 154.0 ms elapsed; 301.0 ms CPU; 104,827 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card High'><h4>High — Excessive rows read compared with rows returned</h4><p><b>Problem location:</b> Filtering clause — line 140 to 142</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>WHERE p.patientid = @patientid
+          AND (AutoFillFlag IN (0, -1, 2) OR (AutoFillFlag = 1 AND (p.[Status] &lt;&gt; &#39;INC&#39; OR p.wb_Status = &#39;PEN&#39;)))
+          AND (@rxnumber = 0 OR @rxnumber = p.rxnumber)</pre><p><b>Why this fragment is identified:</b> The predicate is not selective, not SARGable or is evaluated as a residual predicate.</p><p><b>Plan evidence:</b> Estimated rows 30,324; actual rows 30,353; rows read 1,082,682; executions 2; logical reads 17,596; subtree cost 13.4683; functions .</p><p><b>Impact:</b> 1 captured execution(s); 154.0 ms elapsed; 301.0 ms CPU; 104,827 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Review predicate form, index key order, filtered indexes and unnecessary row access.</p></div></div><div class='card'><h3>Statement 12</h3><p><b>Statement elapsed:</b> 65.66 sec (65,664 ms) &nbsp; <b>CPU:</b> 64.44 sec (64,441 ms) &nbsp; <b>UDF elapsed:</b> 62.57 sec (62,571 ms)</p><div class='card Critical'><h4>Critical — Statement spilled to TempDB at 2 operator(s)</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> One or more sort/hash operators exceeded their available memory.</p><p><b>Plan evidence:</b> Estimated rows 10,159; actual rows 30,353; rows read 0; executions 1; logical reads 0; subtree cost 156.4120; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Fix the statement&#39;s row-flow and cardinality causes, then retest the memory grant and spill behavior.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 30,353 rows (30,353.0x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 30,353; rows read 30,353; executions 30,353; logical reads 87,247; subtree cost 51.0559; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 30,738 rows (30,346.2x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 30,738; rows read 30,738; executions 30,353; logical reads 91,170; subtree cost 8.5943; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 29,893 rows (30,278.9x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 29,893; rows read 30,738; executions 30,738; logical reads 30,738; subtree cost 24.2234; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 30,016 rows (30,016.0x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 30,016; rows read 30,016; executions 30,353; logical reads 86,290; subtree cost 25.0507; functions Nexxsys.dbo.f_GetPrevRxComplete.</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 1,882 rows (1,882.0x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 1,882; rows read 5,139; executions 1,977; logical reads 6,193; subtree cost 0.0062; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 3 rows but observed 1,977 rows (764.9x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 3; actual rows 1,977; rows read 1,977; executions 252; logical reads 760; subtree cost 0.0033; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 252 rows (252.0x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 252; rows read 252; executions 252; logical reads 756; subtree cost 0.0058; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 252 rows (252.0x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 252; rows read 252; executions 252; logical reads 756; subtree cost 0.0058; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 252 rows (252.0x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 252; rows read 252; executions 252; logical reads 504; subtree cost 0.0058; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card Critical'><h4>Critical — Root cardinality estimate mismatch</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The optimizer estimated 1 rows but observed 252 rows (252.0x mismatch).</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 252; rows read 252; executions 252; logical reads 504; subtree cost 0.0058; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</p></div><div class='card High'><h4>High — Repeated key lookup detected</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The nonclustered index does not contain all columns required by the query.</p><p><b>Plan evidence:</b> Estimated rows 1; actual rows 29,893; rows read 30,738; executions 30,738; logical reads 30,738; subtree cost 24.2234; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Evaluate a covering index or query-column reduction after measuring write and storage impact.</p></div><div class='card High'><h4>High — Excessive rows read compared with rows returned</h4><p><b>Problem location:</b> Full SQL statement — line 197 to 230</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</pre><p><b>Why this fragment is identified:</b> The predicate is not selective, not SARGable or is evaluated as a residual predicate.</p><p><b>Plan evidence:</b> Estimated rows 0; actual rows 1; rows read 205; executions 205; logical reads 615; subtree cost 0.0076; functions .</p><p><b>Impact:</b> 1 captured execution(s); 65.664 sec (65,664 ms) elapsed; 64.441 sec (64,441 ms) CPU; 498,795 logical reads; timing source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Fix:</b> Review predicate form, index key order, filtered indexes and unnecessary row access.</p></div><div class='card High'><h4>High — One operator dominates the captured statement runtime</h4><p><b>Problem location:</b> Scalar UDF: dbo.f_GetRefillRemaining — line 214</p><pre style='white-space:pre-wrap;background:#f7f9fc;border:1px solid #cbd5e1;padding:12px;border-radius:6px;'>dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused)</pre><p><b>Why this fragment is identified:</b> The captured statement spent most of its recorded operator time in one operator.</p><p><b>Plan evidence:</b> Estimated rows 18; actual rows 252; rows read 0; executions 1; logical reads 0; subtree cost 199.3480; functions .</p><p><b>Impact:</b> 65.404 sec (65,404 ms) operator elapsed; 65.664 sec (65,664 ms) statement elapsed.</p><p><b>Fix:</b> Review row reduction, predicates, join order and supporting indexes before this operator.</p></div></div><div class='card'><h3>Statement 8</h3><p><b>Statement elapsed:</b> 0 ms &nbsp; <b>CPU:</b> 0 ms &nbsp; <b>UDF elapsed:</b> 0 ms</p><div class='card Medium'><h4>Medium — Statement memory grant is substantially larger than memory used</h4><p><b>Problem location:</b> Full SQL statement</p><p><b>Why this fragment is identified:</b> The optimizer overestimated the statement&#39;s memory requirement.</p><p><b>Plan evidence:</b> Estimated rows 252; actual rows 0; rows read 0; executions 1; logical reads 0; subtree cost 0.0298; functions .</p><p><b>Impact:</b> Actual time unavailable; estimated subtree cost 0.0298.</p><p><b>Fix:</b> Correct cardinality estimates and parameter sensitivity before considering memory-grant hints.</p></div></div><h2>Complete Developer and DBA Findings Grouped by Statement</h2><p class='muted'>Each SQL statement appears once. Node IDs are retained inside the issue detail for DBA traceability.</p><div class='card'><h3>Statement 6 – FixNow / Critical</h3><p><b>Procedure location:</b> 132</p><p><b>Executions:</b> 1</p><p><b>Statement timing:</b> 1 execution(s); 154.0 ms elapsed, 301.0 ms CPU, 0 ms UDF elapsed, 0 ms UDF CPU and 104,827 logical reads. Source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Consolidated issues:</b> <ul><li><b>Root cardinality estimate mismatch</b> <span class='muted'>(detected once; affected plan nodes: 8)</span><br>The optimizer estimated 1 rows but observed 30,352 rows (30,352.0x mismatch).</li><li><b>Excessive rows read compared with rows returned</b> <span class='muted'>(detected once; affected plan nodes: 7)</span><br>The predicate is not selective, not SARGable or is evaluated as a residual predicate.</li></ul></p><p><code>SELECT MAX(p.id) AS rxid
+        INTO #temprx
+        FROM dbo.prescription p
+        INNER JOIN dbo.prescriptionextended pe ON p.id = pe.RxId
+        WHERE p.patientid = @patientid
+          AND (AutoFillFlag IN (0, -1, 2) OR (AutoFillFlag = 1 AND (p.[Status] &lt;&gt; &#39;INC&#39; OR p.wb_Status = &#39;PEN&#39;)))
+          AND (@rxnumber = 0 OR @rxnumber = p.rxnumber)
+        GROUP BY p.authrxid</code></p><table><tr><th>Node</th><th>Priority</th><th>Severity</th><th>Issue</th><th>SQL fragment</th><th>Why it happened</th><th>Fix location</th><th>Recommended fix</th><th>Future risk</th><th>Evidence</th></tr><tr class='Critical'><td>8</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Join clause</b><br>Lines 139-139<br><code>INNER JOIN dbo.prescriptionextended pe ON p.id = pe.RxId</code></td><td>The optimizer estimated 1 rows but observed 30,352 rows (30,352.0x mismatch).</td><td>Stored procedure lines 139; Join clause.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 30,352; rows read 30,353; executions 30,353; logical reads 87,231; subtree cost 88.5546; functions .</td></tr><tr class='High'><td>7</td><td class='PlannedFix'>PlannedFix</td><td>High</td><td>Excessive rows read compared with rows returned</td><td><b>Filtering clause</b><br>Lines 140-142<br><code>WHERE p.patientid = @patientid
+          AND (AutoFillFlag IN (0, -1, 2) OR (AutoFillFlag = 1 AND (p.[Status] &lt;&gt; &#39;INC&#39; OR p.wb_Status = &#39;PEN&#39;)))
+          AND (@rxnumber = 0 OR @rxnumber = p.rxnumber)</code></td><td>The predicate is not selective, not SARGable or is evaluated as a residual predicate.</td><td>Stored procedure lines 140-142; Filtering clause.</td><td>Review predicate form, index key order, filtered indexes and unnecessary row access.</td><td>I/O and CPU will rise as the table grows.</td><td>Estimated rows 30,324; actual rows 30,353; rows read 1,082,682; executions 2; logical reads 17,596; subtree cost 13.4683; functions .</td></tr></table></div><div class='card'><h3>Statement 12 – FixNow / Critical</h3><p><b>Procedure location:</b> 197</p><p><b>Executions:</b> 1</p><p><b>Statement timing:</b> 1 execution(s); 65.66 sec (65,664 ms) elapsed, 64.44 sec (64,441 ms) CPU, 62.57 sec (62,571 ms) UDF elapsed, 61.65 sec (61,649 ms) UDF CPU and 498,795 logical reads. Source: StmtSimple/QueryPlan/QueryTimeStats.</p><p><b>Consolidated issues:</b> <ul><li><b>Statement spilled to TempDB at 2 operator(s)</b> <span class='muted'>(detected once; affected plan nodes: 48)</span><br>One or more sort/hash operators exceeded their available memory.</li><li><b>Root cardinality estimate mismatch</b> <span class='muted'>(detected 10 times; affected plan nodes: 72, 74, 76, 77, 83, 84, 92, 93, 137, 138)</span><br>The optimizer estimated 1 rows but observed 30,353 rows (30,353.0x mismatch).</li><li><b>Repeated key lookup detected</b> <span class='muted'>(detected once; affected plan nodes: 76)</span><br>The nonclustered index does not contain all columns required by the query.</li><li><b>One operator dominates the captured statement runtime</b> <span class='muted'>(detected once; affected plan nodes: 0)</span><br>The captured statement spent most of its recorded operator time in one operator.</li><li><b>Excessive rows read compared with rows returned</b> <span class='muted'>(detected once; affected plan nodes: 123)</span><br>The predicate is not selective, not SARGable or is evaluated as a residual predicate.</li></ul></p><p><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                --f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc /*SQA 17943*/,
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,  
+                pe.RefusalToFillFlag AS IsBCRefusalToFill,/*SQA 17943*/
+                p.authorizationstatus,
+                p.intervaldays,
+                p.methodofauthorization,
+                p.reasonforusecode,
+                p.ltcnumber,
+                p.labelcopies,
+                p.drugnameindicator,
+                p.rebillflag,
+                p.qtybreakdownflag,
+                p.shrinkprintflag,
+                p.labelnote,
+                p.authorizationdate,
+                p.entereduserid,
+                p.dispenseduserid,
+                p.wb_status,
+                p.wb_date,
+                p.filltype,
+                p.enteredtimestamp,
+                p.urgentflag,
+                p.dialogueflag,
+                p.deliverflag,
+                p.grouprxstatuscode,
+                p.doctoraddresstype,
+                --SQA 9158
+                (CASE 
+                    WHEN @isbc = 1 
+                    THEN dbo.f_DrugNameWithInd_bc(p.id, p.drugid, @li_DrugNameIndicator, DEFAULT)
+                    ELSE dbo.f_DrugNameWithInd(p.drugid, @li_DrugNameIndicator, DEFAULT)
+                 END) AS drugname,  -- SQA 17043
+                dbo.f_formatDoctorName(ISNULL(pah.doctorpracticecode, d.practicecode),
+                                         ISNULL(pah.doctorfirstname, d.firstname),
+                                         ISNULL(pah.doctorlastname, d.lastname),
+                                         1, 
+                                         ISNULL(pah.doctorprescriberid, d.prescriberid)
+                                         , DEFAULT) AS doctorname,
+                ISNULL(pah.doctorpracticecode, d.practicecode) AS practicecode,             -- SQA 17043
+                ISNULL(pah.druggenericname, v.genericname) AS genericname,                  -- SQA 17043
+                ISNULL(pah.drugtradename, v.tradename) AS tradename,                        -- SQA 17043
+                ISNULL(pah.drugmanufacturercode, v.manufacturercode) AS manufacturercode,   -- SQA 17043
+                ISNULL(pah.drugstrength, v.strength) AS strength,                           -- SQA 17043
+                ISNULL(pah.drugform, v.form) AS form,                                       -- SQA 17043
+                0 AS OTCflag,
+                dbo.f_PerformedOnDate(p.id) AS Performed_On_Date,
+                v.MixtureFlag,
+                p.admintimes,
+                (CASE WHEN ISNULL(p.dossetfla</code></p><table><tr><th>Node</th><th>Priority</th><th>Severity</th><th>Issue</th><th>SQL fragment</th><th>Why it happened</th><th>Fix location</th><th>Recommended fix</th><th>Future risk</th><th>Evidence</th></tr><tr class='Critical'><td>48</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Statement spilled to TempDB at 2 operator(s)</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>One or more sort/hash operators exceeded their available memory.</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Fix the statement&#39;s row-flow and cardinality causes, then retest the memory grant and spill behavior.</td><td>Spills can create TempDB I/O, concurrency pressure and unstable response time.</td><td>Estimated rows 10,159; actual rows 30,353; rows read 0; executions 1; logical reads 0; subtree cost 156.4120; functions .</td></tr><tr class='Critical'><td>72</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 30,353 rows (30,353.0x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 30,353; rows read 30,353; executions 30,353; logical reads 87,247; subtree cost 51.0559; functions .</td></tr><tr class='Critical'><td>74</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 30,738 rows (30,346.2x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 30,738; rows read 30,738; executions 30,353; logical reads 91,170; subtree cost 8.5943; functions .</td></tr><tr class='Critical'><td>76</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 29,893 rows (30,278.9x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 29,893; rows read 30,738; executions 30,738; logical reads 30,738; subtree cost 24.2234; functions .</td></tr><tr class='Critical'><td>77</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 30,016 rows (30,016.0x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 30,016; rows read 30,016; executions 30,353; logical reads 86,290; subtree cost 25.0507; functions Nexxsys.dbo.f_GetPrevRxComplete.</td></tr><tr class='Critical'><td>83</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 252 rows (252.0x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 252; rows read 252; executions 252; logical reads 756; subtree cost 0.0058; functions .</td></tr><tr class='Critical'><td>84</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 252 rows (252.0x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 252; rows read 252; executions 252; logical reads 756; subtree cost 0.0058; functions .</td></tr><tr class='Critical'><td>92</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 252 rows (252.0x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 252; rows read 252; executions 252; logical reads 504; subtree cost 0.0058; functions .</td></tr><tr class='Critical'><td>93</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 252 rows (252.0x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 252; rows read 252; executions 252; logical reads 504; subtree cost 0.0058; functions .</td></tr><tr class='Critical'><td>137</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 3 rows but observed 1,977 rows (764.9x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 3; actual rows 1,977; rows read 1,977; executions 252; logical reads 760; subtree cost 0.0033; functions .</td></tr><tr class='Critical'><td>138</td><td class='FixNow'>FixNow</td><td>Critical</td><td>Root cardinality estimate mismatch</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The optimizer estimated 1 rows but observed 1,882 rows (1,882.0x mismatch).</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Validate statistics, representative parameter values, data skew, predicates and temp-object estimates at this root access/join point.</td><td>Bad estimates can cause poor joins, wrong memory grants, spills and unstable plans.</td><td>Estimated rows 1; actual rows 1,882; rows read 5,139; executions 1,977; logical reads 6,193; subtree cost 0.0062; functions .</td></tr><tr class='High'><td>76</td><td class='FixNow'>FixNow</td><td>High</td><td>Repeated key lookup detected</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The nonclustered index does not contain all columns required by the query.</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Evaluate a covering index or query-column reduction after measuring write and storage impact.</td><td>Lookup cost grows with rows returned and can become a random-I/O bottleneck.</td><td>Estimated rows 1; actual rows 29,893; rows read 30,738; executions 30,738; logical reads 30,738; subtree cost 24.2234; functions .</td></tr><tr class='High'><td>0</td><td class='PlannedFix'>PlannedFix</td><td>High</td><td>One operator dominates the captured statement runtime</td><td><b>Scalar UDF: dbo.f_GetRefillRemaining</b><br>Lines 214-214<br><code>dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused)</code></td><td>The captured statement spent most of its recorded operator time in one operator.</td><td>Stored procedure lines 214; Scalar UDF: dbo.f_GetRefillRemaining.</td><td>Review row reduction, predicates, join order and supporting indexes before this operator.</td><td>The dominant operator can become a larger bottleneck as volume or concurrency increases.</td><td>Estimated rows 18; actual rows 252; rows read 0; executions 1; logical reads 0; subtree cost 199.3480; functions .</td></tr><tr class='High'><td>123</td><td class='PlannedFix'>PlannedFix</td><td>High</td><td>Excessive rows read compared with rows returned</td><td><b>Full SQL statement</b><br>Lines 197-230<br><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                -- f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc, /* RQ00216 */
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,</code></td><td>The predicate is not selective, not SARGable or is evaluated as a residual predicate.</td><td>Stored procedure lines 197-230; Full SQL statement.</td><td>Review predicate form, index key order, filtered indexes and unnecessary row access.</td><td>I/O and CPU will rise as the table grows.</td><td>Estimated rows 0; actual rows 1; rows read 205; executions 205; logical reads 615; subtree cost 0.0076; functions .</td></tr></table></div><div class='card'><h3>Statement 8 – PlannedFix / Medium</h3><p><b>Procedure location:</b> Not mapped</p><p><b>Executions:</b> 1</p><p><b>Statement timing:</b> Actual time is unavailable. Statement estimated subtree cost: 0.0298.</p><p><b>Consolidated issues:</b> <ul><li><b>Statement memory grant is substantially larger than memory used</b> <span class='muted'>(detected once; affected plan nodes: 0)</span><br>The optimizer overestimated the statement&#39;s memory requirement.</li></ul></p><p><code>insert [#temprx_____________________________________________________________________________________________________________000000001329] select *, %%bmk%% from [#temprx_____________________________________________________________________________________________________________000000001329] option (maxdop 1)</code></p><table><tr><th>Node</th><th>Priority</th><th>Severity</th><th>Issue</th><th>SQL fragment</th><th>Why it happened</th><th>Fix location</th><th>Recommended fix</th><th>Future risk</th><th>Evidence</th></tr><tr class='Medium'><td>0</td><td class='PlannedFix'>PlannedFix</td><td>Medium</td><td>Statement memory grant is substantially larger than memory used</td><td><b></b><br>Lines -<br><code></code></td><td>The optimizer overestimated the statement&#39;s memory requirement.</td><td>Statement 8; object #temprx_____________________________________________________________________________________________________________000000001329, index irx.</td><td>Correct cardinality estimates and parameter sensitivity before considering memory-grant hints.</td><td>Oversized grants reduce concurrency and can cause RESOURCE_SEMAPHORE waits.</td><td>Estimated rows 252; actual rows 0; rows read 0; executions 1; logical reads 0; subtree cost 0.0298; functions .</td></tr></table></div><h2>Stored-Procedure Static Review</h2><table><tr><th>Priority</th><th>Severity</th><th>Line</th><th>Issue</th><th>Source</th><th>Fix location</th><th>Fix</th><th>Future risk</th></tr><tr><td colspan='8'>No configured static SQL issues were detected.</td></tr></table><h2>Query / Statement Timing</h2><table><tr><th>Statement</th><th>Procedure line</th><th>Executions</th><th>Elapsed time</th><th>CPU time</th><th>Logical reads</th><th>Estimated cost</th><th>Issue count</th><th>Statement text</th></tr><tr><td>2</td><td>89</td><td>0</td><td>0 ms</td><td>0 ms</td><td>4</td><td>0.0066</td><td>0</td><td><code>IF EXISTS (SELECT 1 FROM Preference WHERE Code = &#39;DOP&#39; AND SValue = &#39;1&#39;)</code></td></tr><tr><td>4</td><td>99</td><td>1</td><td>1.05 sec (1,051 ms)</td><td>1.0 ms</td><td>7</td><td>0.0099</td><td>0</td><td><code>SELECT 
+            @li_Pat_ComplianceFlag = ISNULL(CONVERT(SMALLINT, dbo.f_PreferenceRetrieve(&#39;PAT&#39;, @patientid, &#39;P16&#39;)), 0),
+            @LastName = lastname,
+            @FirstName = firstname,
+            @patient_keyfieldmodified = keyfieldmodified,   -- SQA 17768
+            @ls_phn = provincialhealthnumber                -- RQ0023
+        FROM dbo.patient
+        WHERE id = @patientid</code></td></tr><tr><td>6</td><td>132</td><td>1</td><td>154.0 ms</td><td>301.0 ms</td><td>104,827</td><td>103.4370</td><td>2</td><td><code>SELECT MAX(p.id) AS rxid
+        INTO #temprx
+        FROM dbo.prescription p
+        INNER JOIN dbo.prescriptionextended pe ON p.id = pe.RxId
+        WHERE p.patientid = @patientid
+          AND (AutoFillFlag IN (0, -1, 2) OR (AutoFillFlag = 1 AND (p.[Status] &lt;&gt; &#39;INC&#39; OR p.wb_Status = &#39;PEN&#39;)))
+          AND (@rxnumber = 0 OR @rxnumber = p.rxnumber)
+        GROUP BY p.authrxid</code></td></tr><tr><td>8</td><td></td><td>1</td><td>0 ms</td><td>0 ms</td><td>3</td><td>0.0298</td><td>1</td><td><code>insert [#temprx_____________________________________________________________________________________________________________000000001329] select *, %%bmk%% from [#temprx_____________________________________________________________________________________________________________000000001329] option (maxdop 1)</code></td></tr><tr><td>10</td><td>148</td><td>1</td><td>0 ms</td><td>0 ms</td><td>2</td><td>0.0279</td><td>0</td><td><code>SELECT MAX(id) AS id
+        INTO #TEMPEXT
+        FROM dbo.externalprofile
+        WHERE patientid = @patientid
+          AND deletedflag = 0
+        GROUP BY drugid</code></td></tr><tr><td>12</td><td>197</td><td>1</td><td>65.66 sec (65,664 ms)</td><td>64.44 sec (64,441 ms)</td><td>498,795</td><td>199.3480</td><td>14</td><td><code>SELECT 
+                p.id,
+                p.rxnumber,
+                NULL AS otcnumber,
+                p.authnumber,
+                p.authrxid,
+                p.authorizationid,
+                p.patientid,
+                p.doctorid,
+                p.drugid,
+                p.productid,
+                p.[type],
+                p.reqauthorizationflag,
+                p.activeflag,
+                ISNULL(p.quantityauthorized,0) AS quantityauthorized,
+                ISNULL(p.quantityauthorizedused,0) AS quantityauthorizedused,
+                ISNULL(p.fillquantity,0) AS fillquantity,
+                dbo.f_GetRefillRemaining(p.id, p.[Status], p.fillquantity, p.quantityauthorized, p.quantityauthorizedused) AS RefillRemaining,
+                p.instructioncode,
+                p.instructiontext,
+                p.addinstructioncode,
+                p.addinstructiontext,
+                p.dayssupply,
+                p.rxbillingcodes,
+                p.filldate,
+                p.lastfilldate,
+                p.[Status],
+                --f_GetRxStatusDescription(prescription.id,prescription.status) AS status_desc /*SQA 17943*/,
+                (CASE 
+                    WHEN p.[Status] = &#39;HOL&#39; AND pe.RefusalToFillFlag = 1 THEN &#39;REF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag = 1 THEN &#39;NOF&#39;
+                    WHEN p.[Status] = &#39;COM&#39; AND @isbc = 1 AND pe.RefusalToFillFlag &lt;&gt; 1 AND p.discontinuedflag = 1 THEN &#39;DC&#39;
+                    ELSE ps.code 
+                 END) AS status_desc,  
+                pe.RefusalToFillFlag AS IsBCRefusalToFill,/*SQA 17943*/
+                p.authorizationstatus,
+                p.intervaldays,
+                p.methodofauthorization,
+                p.reasonforusecode,
+                p.ltcnumber,
+                p.labelcopies,
+                p.drugnameindicator,
+                p.rebillflag,
+                p.qtybreakdownflag,
+                p.shrinkprintflag,
+                p.labelnote,
+                p.authorizationdate,
+                p.entereduserid,
+                p.dispenseduserid,
+                p.wb_status,
+                p.wb_date,
+                p.filltype,
+                p.enteredtimestamp,
+                p.urgentflag,
+                p.dialogueflag,
+                p.deliverflag,
+                p.grouprxstatuscode,
+                p.doctoraddresstype,
+                --SQA 9158
+                (CASE 
+                    WHEN @isbc = 1 
+                    THEN dbo.f_DrugNameWithInd_bc(p.id, p.drugid, @li_DrugNameIndicator, DEFAULT)
+                    ELSE dbo.f_DrugNameWithInd(p.drugid, @li_DrugNameIndicator, DEFAULT)
+                 END) AS drugname,  -- SQA 17043
+                dbo.f_formatDoctorName(ISNULL(pah.doctorpracticecode, d.practicecode),
+                                         ISNULL(pah.doctorfirstname, d.firstname),
+                                         ISNULL(pah.doctorlastname, d.lastname),
+                                         1, 
+                                         ISNULL(pah.doctorprescriberid, d.prescriberid)
+                                         , DEFAULT) AS doctorname,
+                ISNULL(pah.doctorpracticecode, d.practicecode) AS practicecode,             -- SQA 17043
+                ISNULL(pah.druggenericname, v.genericname) AS genericname,                  -- SQA 17043
+                ISNULL(pah.drugtradename, v.tradename) AS tradename,                        -- SQA 17043
+                ISNULL(pah.drugmanufacturercode, v.manufacturercode) AS manufacturercode,   -- SQA 17043
+                ISNULL(pah.drugstrength, v.strength) AS strength,                           -- SQA 17043
+                ISNULL(pah.drugform, v.form) AS form,                                       -- SQA 17043
+                0 AS OTCflag,
+                dbo.f_PerformedOnDate(p.id) AS Performed_On_Date,
+                v.MixtureFlag,
+                p.admintimes,
+                (CASE WHEN ISNULL(p.dossetfla</code></td></tr></table><h2>DBA Operator Appendix</h2><p class='muted'>Node-level rows are kept only in this technical appendix.</p><table><tr><th>Stmt</th><th>Node</th><th>Operator</th><th>Object / Index</th><th>Estimated rows</th><th>Actual rows</th><th>Rows read</th><th>Executions</th><th>Elapsed ms</th><th>CPU ms</th><th>Subtree cost</th></tr><tr><td>2</td><td>0</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>2</td><td>1</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>2</td><td>2</td><td>Constant Scan</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>2</td><td>3</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>2</td><td>4</td><td>Index Seek</td><td>Preference<br>idx_Preference_Code</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>2</td><td>6</td><td>Clustered Index Seek</td><td>Preference<br>PK__Preferen__BE0863A8D66818D4</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>4</td><td>0</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0099</td></tr><tr><td>4</td><td>1</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0099</td></tr><tr><td>4</td><td>2</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>4</td><td>3</td><td>Clustered Index Seek</td><td>Patient<br>PK__Patient__3214EC0772CE2133</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>4</td><td>4</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>4</td><td>5</td><td>Constant Scan</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>4</td><td>6</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>4</td><td>7</td><td>Constant Scan</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>4</td><td>8</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>4</td><td>9</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>4</td><td>10</td><td>Constant Scan</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>4</td><td>11</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>4</td><td>12</td><td>Stream Aggregate</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>4</td><td>13</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>4</td><td>14</td><td>Filter</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>4</td><td>15</td><td>Nested Loops</td><td><br></td><td>1</td><td>6</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>4</td><td>16</td><td>Compute Scalar</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>4</td><td>17</td><td>Constant Scan</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>4</td><td>18</td><td>Index Seek</td><td>Preference<br>idx_Preference_EntityId_EntityCode_Code</td><td>1</td><td>6</td><td>6</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>4</td><td>20</td><td>Clustered Index Seek</td><td>Preference<br>PK__Preferen__BE0863A8D66818D4</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>6</td><td>0</td><td>Parallelism</td><td><br></td><td>28,367</td><td>252</td><td>0</td><td>1</td><td>153.0</td><td>0.0</td><td>103.4370</td></tr><tr><td>6</td><td>1</td><td>Table Insert</td><td>#temprx<br></td><td>28,367</td><td>252</td><td>0</td><td>2</td><td>152.0</td><td>7.0</td><td>103.3910</td></tr><tr><td>6</td><td>2</td><td>Hash Match</td><td><br></td><td>28,367</td><td>252</td><td>0</td><td>2</td><td>152.0</td><td>7.0</td><td>103.2470</td></tr><tr><td>6</td><td>3</td><td>Parallelism</td><td><br></td><td>30,324</td><td>30,352</td><td>0</td><td>2</td><td>149.0</td><td>0.0</td><td>102.8590</td></tr><tr><td>6</td><td>4</td><td>Nested Loops</td><td><br></td><td>30,324</td><td>30,352</td><td>0</td><td>2</td><td>144.0</td><td>282.0</td><td>102.7820</td></tr><tr><td>6</td><td>7</td><td>Index Scan</td><td>Prescription<br>idx_Prescription_Status</td><td>30,324</td><td>30,353</td><td>1,082,682</td><td>2</td><td>98.0</td><td>192.0</td><td>13.4683</td></tr><tr><td>6</td><td>8</td><td>Clustered Index Seek</td><td>PrescriptionExtended<br>PK__Prescrip__D5962486D5DED099</td><td>1</td><td>30,352</td><td>30,353</td><td>30,353</td><td>32.0</td><td>61.0</td><td>88.5546</td></tr><tr><td>8</td><td>0</td><td>Index Insert</td><td>#temprx_____________________________________________________________________________________________________________000000001329<br>irx</td><td>252</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0298</td></tr><tr><td>8</td><td>1</td><td>Sort</td><td><br></td><td>252</td><td>252</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0195</td></tr><tr><td>8</td><td>2</td><td>Table Scan</td><td>#temprx_____________________________________________________________________________________________________________000000001329<br></td><td>252</td><td>252</td><td>252</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0050</td></tr><tr><td>10</td><td>0</td><td>Table Insert</td><td>#TEMPEXT<br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0279</td></tr><tr><td>10</td><td>1</td><td>Stream Aggregate</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0179</td></tr><tr><td>10</td><td>2</td><td>Sort</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0179</td></tr><tr><td>10</td><td>3</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>10</td><td>4</td><td>Index Seek</td><td>ExternalProfile<br>idx_ExternalProfile_PatientId</td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>10</td><td>6</td><td>Clustered Index Seek</td><td>ExternalProfile<br>PK__External__3214EC07F1DBEE5B</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>0</td><td>Sort</td><td><br></td><td>18</td><td>252</td><td>0</td><td>1</td><td>65,404.0</td><td>64,430.0</td><td>199.3480</td></tr><tr><td>12</td><td>1</td><td>Concatenation</td><td><br></td><td>18</td><td>252</td><td>0</td><td>1</td><td>65,396.0</td><td>64,422.0</td><td>199.3360</td></tr><tr><td>12</td><td>2</td><td>Compute Scalar</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,396.0</td><td>64,421.0</td><td>199.3000</td></tr><tr><td>12</td><td>3</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,174.0</td><td>64,200.0</td><td>199.3000</td></tr><tr><td>12</td><td>4</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,173.0</td><td>64,199.0</td><td>199.2940</td></tr><tr><td>12</td><td>5</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,172.0</td><td>64,198.0</td><td>199.2880</td></tr><tr><td>12</td><td>6</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,171.0</td><td>64,197.0</td><td>199.2820</td></tr><tr><td>12</td><td>7</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,171.0</td><td>64,197.0</td><td>199.2760</td></tr><tr><td>12</td><td>8</td><td>Compute Scalar</td><td><br></td><td>17</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>199.2710</td></tr><tr><td>12</td><td>9</td><td>Stream Aggregate</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,170.0</td><td>64,196.0</td><td>199.2710</td></tr><tr><td>12</td><td>10</td><td>Nested Loops</td><td><br></td><td>42</td><td>1,900</td><td>0</td><td>1</td><td>65,154.0</td><td>64,179.0</td><td>199.2710</td></tr><tr><td>12</td><td>11</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,135.0</td><td>64,161.0</td><td>199.2500</td></tr><tr><td>12</td><td>12</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,134.0</td><td>64,160.0</td><td>199.2450</td></tr><tr><td>12</td><td>13</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,132.0</td><td>64,158.0</td><td>199.2400</td></tr><tr><td>12</td><td>14</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,131.0</td><td>64,157.0</td><td>199.2280</td></tr><tr><td>12</td><td>15</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,130.0</td><td>64,156.0</td><td>199.2150</td></tr><tr><td>12</td><td>16</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,125.0</td><td>64,151.0</td><td>199.2070</td></tr><tr><td>12</td><td>17</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,123.0</td><td>64,149.0</td><td>199.2020</td></tr><tr><td>12</td><td>18</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,118.0</td><td>64,144.0</td><td>199.1900</td></tr><tr><td>12</td><td>19</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,118.0</td><td>64,144.0</td><td>199.1840</td></tr><tr><td>12</td><td>20</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,118.0</td><td>64,144.0</td><td>199.1780</td></tr><tr><td>12</td><td>21</td><td>Compute Scalar</td><td><br></td><td>17</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>199.1530</td></tr><tr><td>12</td><td>22</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,111.0</td><td>64,137.0</td><td>199.1530</td></tr><tr><td>12</td><td>23</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,110.0</td><td>64,136.0</td><td>199.1470</td></tr><tr><td>12</td><td>24</td><td>Compute Scalar</td><td><br></td><td>17</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>199.1410</td></tr><tr><td>12</td><td>25</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,109.0</td><td>64,135.0</td><td>199.1410</td></tr><tr><td>12</td><td>26</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,108.0</td><td>64,134.0</td><td>199.1350</td></tr><tr><td>12</td><td>27</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,106.0</td><td>64,132.0</td><td>199.1350</td></tr><tr><td>12</td><td>28</td><td>Top</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>29</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>30</td><td>Index Seek</td><td>Pharmacy<br>Pharmacy_Type</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>32</td><td>Clustered Index Seek</td><td>Pharmacy<br>PK__Pharmacy__3214EC070CFF78E9</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>33</td><td>Compute Scalar</td><td><br></td><td>17</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>199.1290</td></tr><tr><td>12</td><td>34</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,106.0</td><td>64,131.0</td><td>199.1290</td></tr><tr><td>12</td><td>35</td><td>Compute Scalar</td><td><br></td><td>17</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>199.1230</td></tr><tr><td>12</td><td>36</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,104.0</td><td>64,130.0</td><td>199.1230</td></tr><tr><td>12</td><td>37</td><td>Nested Loops</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,103.0</td><td>64,129.0</td><td>199.1170</td></tr><tr><td>12</td><td>38</td><td>Hash Match</td><td><br></td><td>17</td><td>252</td><td>0</td><td>1</td><td>65,101.0</td><td>64,127.0</td><td>199.1080</td></tr><tr><td>12</td><td>39</td><td>Index Scan</td><td>#temprx<br>irx</td><td>252</td><td>252</td><td>252</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0036</td></tr><tr><td>12</td><td>40</td><td>Compute Scalar</td><td><br></td><td>79,506</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>198.5640</td></tr><tr><td>12</td><td>41</td><td>Hash Match</td><td><br></td><td>79,506</td><td>30,353</td><td>0</td><td>1</td><td>65,092.0</td><td>64,118.0</td><td>198.5560</td></tr><tr><td>12</td><td>42</td><td>Table Scan</td><td>SplitRxGroupMapping<br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>43</td><td>Merge Join</td><td><br></td><td>79,506</td><td>30,353</td><td>0</td><td>1</td><td>65,084.0</td><td>64,110.0</td><td>198.1100</td></tr><tr><td>12</td><td>44</td><td>Clustered Index Scan</td><td>PrescriptionWorkflow<br>PK__Prescrip__837F9CBF00F44907</td><td>1,082,640</td><td>1,082,511</td><td>1,082,511</td><td>1</td><td>211.0</td><td>211.0</td><td>7.2786</td></tr><tr><td>12</td><td>45</td><td>Nested Loops</td><td><br></td><td>20,170</td><td>30,353</td><td>0</td><td>1</td><td>64,793.0</td><td>63,818.0</td><td>188.5020</td></tr><tr><td>12</td><td>47</td><td>Compute Scalar</td><td><br></td><td>10,159</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>156.4130</td></tr><tr><td>12</td><td>48</td><td>Sort</td><td><br></td><td>10,159</td><td>30,353</td><td>0</td><td>1</td><td>64,721.0</td><td>63,747.0</td><td>156.4120</td></tr><tr><td>12</td><td>49</td><td>Nested Loops</td><td><br></td><td>10,159</td><td>30,353</td><td>0</td><td>1</td><td>64,095.0</td><td>63,133.0</td><td>155.7800</td></tr><tr><td>12</td><td>51</td><td>Hash Match</td><td><br></td><td>10,161</td><td>30,353</td><td>0</td><td>1</td><td>1,527.0</td><td>1,500.0</td><td>130.6870</td></tr><tr><td>12</td><td>52</td><td>Clustered Index Scan</td><td>Drug<br>PK__Drug__3214EC07F0E3371A</td><td>42,447</td><td>42,447</td><td>42,447</td><td>1</td><td>17.0</td><td>17.0</td><td>2.0485</td></tr><tr><td>12</td><td>53</td><td>Nested Loops</td><td><br></td><td>10,158</td><td>30,353</td><td>0</td><td>1</td><td>1,440.0</td><td>1,413.0</td><td>128.1520</td></tr><tr><td>12</td><td>55</td><td>Merge Join</td><td><br></td><td>7,960</td><td>30,353</td><td>0</td><td>1</td><td>1,005.0</td><td>982.0</td><td>95.2637</td></tr><tr><td>12</td><td>56</td><td>Clustered Index Scan</td><td>RxDecimalQuantity<br>PK__RxDecima__D5962486A21DADC4</td><td>99</td><td>99</td><td>99</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0034</td></tr><tr><td>12</td><td>57</td><td>Compute Scalar</td><td><br></td><td>7,960</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>95.2370</td></tr><tr><td>12</td><td>58</td><td>Sort</td><td><br></td><td>7,960</td><td>30,353</td><td>0</td><td>1</td><td>988.0</td><td>965.0</td><td>95.2362</td></tr><tr><td>12</td><td>59</td><td>Nested Loops</td><td><br></td><td>7,960</td><td>30,353</td><td>0</td><td>1</td><td>695.0</td><td>688.0</td><td>94.8830</td></tr><tr><td>12</td><td>62</td><td>Compute Scalar</td><td><br></td><td>16,593</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>43.7381</td></tr><tr><td>12</td><td>63</td><td>Nested Loops</td><td><br></td><td>16,593</td><td>30,353</td><td>0</td><td>1</td><td>436.0</td><td>431.0</td><td>43.7198</td></tr><tr><td>12</td><td>67</td><td>Hash Match</td><td><br></td><td>14,080</td><td>30,353</td><td>0</td><td>1</td><td>348.0</td><td>347.0</td><td>6.1054</td></tr><tr><td>12</td><td>68</td><td>Index Seek</td><td>Prescription<br>idx_Prescription_PatientId</td><td>30,324</td><td>30,353</td><td>30,353</td><td>1</td><td>6.0</td><td>6.0</td><td>0.0756</td></tr><tr><td>12</td><td>69</td><td>Index Scan</td><td>Prescription<br>Dosset_Id</td><td>502,588</td><td>1,082,682</td><td>1,082,682</td><td>1</td><td>226.0</td><td>226.0</td><td>2.2883</td></tr><tr><td>12</td><td>71</td><td>Clustered Index Seek</td><td>Prescription<br>PK__Prescrip__3214EC07589FC084</td><td>1</td><td>30,353</td><td>30,353</td><td>30,353</td><td>56.0</td><td>52.0</td><td>37.5556</td></tr><tr><td>12</td><td>72</td><td>Clustered Index Seek</td><td>PrescriptionExtended<br>PK__Prescrip__D5962486D5DED099</td><td>1</td><td>30,353</td><td>30,353</td><td>30,353</td><td>59.0</td><td>59.0</td><td>51.0559</td></tr><tr><td>12</td><td>73</td><td>Nested Loops</td><td><br></td><td>1</td><td>29,893</td><td>0</td><td>30,353</td><td>385.0</td><td>381.0</td><td>32.8515</td></tr><tr><td>12</td><td>74</td><td>Index Seek</td><td>PrescriptionAuditHistory<br>idx_PrescriptionAuditHistory_RxId</td><td>1</td><td>30,738</td><td>30,738</td><td>30,353</td><td>229.0</td><td>225.0</td><td>8.5943</td></tr><tr><td>12</td><td>76</td><td>RID Lookup</td><td>PrescriptionAuditHistory<br></td><td>1</td><td>29,893</td><td>30,738</td><td>30,738</td><td>118.0</td><td>118.0</td><td>24.2234</td></tr><tr><td>12</td><td>77</td><td>Clustered Index Seek</td><td>Prescription<br>PK__Prescrip__3214EC07589FC084</td><td>1</td><td>30,016</td><td>30,016</td><td>30,353</td><td>58,961.0</td><td>58,063.0</td><td>25.0507</td></tr><tr><td>12</td><td>78</td><td>Clustered Index Seek</td><td>PrescriptionExtended<br>PK__Prescrip__D5962486D5DED099</td><td>1</td><td>30,016</td><td>30,016</td><td>30,353</td><td>49.0</td><td>49.0</td><td>32.0468</td></tr><tr><td>12</td><td>79</td><td>Row Count Spool</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0083</td></tr><tr><td>12</td><td>80</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0066</td></tr><tr><td>12</td><td>81</td><td>Clustered Index Seek</td><td>PatientComplianceAuthRx<br>PK__PatientC__F348A72886A6AB24</td><td>1</td><td>0</td><td>0</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0033</td></tr><tr><td>12</td><td>82</td><td>Clustered Index Seek</td><td>PharmCareGroup<br>PK__PharmCar__3214EC07F210DA8D</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>83</td><td>Clustered Index Seek</td><td>PrescriptionWorkflow<br>PK__Prescrip__837F9CBF00F44907</td><td>1</td><td>252</td><td>252</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0058</td></tr><tr><td>12</td><td>84</td><td>Clustered Index Seek</td><td>Drug<br>PK__Drug__3214EC07F0E3371A</td><td>1</td><td>252</td><td>252</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0058</td></tr><tr><td>12</td><td>85</td><td>Concatenation</td><td><br></td><td>1</td><td>252</td><td>0</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0000</td></tr><tr><td>12</td><td>86</td><td>Filter</td><td><br></td><td>1</td><td>14</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>87</td><td>Constant Scan</td><td><br></td><td>1</td><td>14</td><td>0</td><td>14</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>88</td><td>Nested Loops</td><td><br></td><td>1</td><td>238</td><td>0</td><td>238</td><td>1.0</td><td>1.0</td><td>0.0059</td></tr><tr><td>12</td><td>89</td><td>Filter</td><td><br></td><td>1</td><td>238</td><td>0</td><td>238</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>90</td><td>Constant Scan</td><td><br></td><td>1</td><td>238</td><td>0</td><td>238</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>91</td><td>Index Seek</td><td>Drug<br>DrugDINProvince</td><td>1</td><td>0</td><td>0</td><td>238</td><td>1.0</td><td>1.0</td><td>0.0058</td></tr><tr><td>12</td><td>92</td><td>Clustered Index Seek</td><td>Doctor<br>PK__Doctor__3214EC07FB26DD6F</td><td>1</td><td>252</td><td>252</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>93</td><td>Clustered Index Seek</td><td>PrescriptionStatus<br>PK__Prescrip__A25C5AA665152503</td><td>1</td><td>252</td><td>252</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>94</td><td>Clustered Index Seek</td><td>DrugForm<br>PK__DrugForm__A25C5AA6C6C4D643</td><td>1</td><td>239</td><td>239</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>95</td><td>Index Spool</td><td><br></td><td>1</td><td>0</td><td>252</td><td>252</td><td>6.0</td><td>6.0</td><td>0.0254</td></tr><tr><td>12</td><td>97</td><td>Sort</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>2.0</td><td>2.0</td><td>0.0179</td></tr><tr><td>12</td><td>98</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>2.0</td><td>2.0</td><td>0.0066</td></tr><tr><td>12</td><td>99</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>100</td><td>Clustered Index Seek</td><td>PatientComplianceAuthRx<br>PK__PatientC__F348A72886A6AB24</td><td>1</td><td>0</td><td>0</td><td>252</td><td>2.0</td><td>2.0</td><td>0.0033</td></tr><tr><td>12</td><td>101</td><td>Clustered Index Seek</td><td>PharmCareGroup<br>PK__PharmCar__3214EC07F210DA8D</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>102</td><td>Top</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>103</td><td>Clustered Index Seek</td><td>PrescriptionExtended<br>PK__Prescrip__D5962486D5DED099</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>104</td><td>Top</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>105</td><td>Clustered Index Seek</td><td>PrescriptionExtended<br>PK__Prescrip__D5962486D5DED099</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>106</td><td>Stream Aggregate</td><td><br></td><td>1</td><td>252</td><td>0</td><td>252</td><td>4.0</td><td>4.0</td><td>0.0117</td></tr><tr><td>12</td><td>107</td><td>Nested Loops</td><td><br></td><td>1</td><td>27</td><td>0</td><td>252</td><td>4.0</td><td>4.0</td><td>0.0117</td></tr><tr><td>12</td><td>108</td><td>Clustered Index Seek</td><td>Claim<br>PK__Claim__D8C17F6D06559381</td><td>1</td><td>252</td><td>252</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0058</td></tr><tr><td>12</td><td>109</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>110</td><td>Clustered Index Seek</td><td>ClaimInterventionCode<br>PK__ClaimInt__0AA50D5376262C06</td><td>1</td><td>27</td><td>27</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0058</td></tr><tr><td>12</td><td>111</td><td>Row Count Spool</td><td><br></td><td>1</td><td>61</td><td>0</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0050</td></tr><tr><td>12</td><td>112</td><td>Index Seek</td><td>EntityAttachment<br>idx_EntityAttachment_EntityCode</td><td>1</td><td>61</td><td>61</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0033</td></tr><tr><td>12</td><td>113</td><td>Row Count Spool</td><td><br></td><td>1</td><td>85</td><td>0</td><td>191</td><td>4.0</td><td>4.0</td><td>0.0083</td></tr><tr><td>12</td><td>114</td><td>Nested Loops</td><td><br></td><td>1</td><td>85</td><td>0</td><td>191</td><td>4.0</td><td>4.0</td><td>0.0066</td></tr><tr><td>12</td><td>115</td><td>Stream Aggregate</td><td><br></td><td>1</td><td>191</td><td>0</td><td>191</td><td>3.0</td><td>3.0</td><td>0.0033</td></tr><tr><td>12</td><td>116</td><td>Top</td><td><br></td><td>1</td><td>191</td><td>0</td><td>191</td><td>2.0</td><td>2.0</td><td>0.0033</td></tr><tr><td>12</td><td>117</td><td>Index Seek</td><td>Prescription<br>idx_Prescription_AuthorizationId</td><td>1</td><td>191</td><td>191</td><td>191</td><td>2.0</td><td>2.0</td><td>0.0033</td></tr><tr><td>12</td><td>118</td><td>Clustered Index Seek</td><td>EntityAttachment<br>PK__EntityAt__A6EE139608E67D5A</td><td>1</td><td>85</td><td>85</td><td>191</td><td>1.0</td><td>1.0</td><td>0.0033</td></tr><tr><td>12</td><td>119</td><td>Row Count Spool</td><td><br></td><td>1</td><td>1</td><td>0</td><td>3</td><td>0.0</td><td>0.0</td><td>0.0126</td></tr><tr><td>12</td><td>120</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>3</td><td>0.0</td><td>0.0</td><td>0.0109</td></tr><tr><td>12</td><td>121</td><td>Index Seek</td><td>Prescription<br>AuthRxId_Id</td><td>3</td><td>205</td><td>205</td><td>3</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>123</td><td>Clustered Index Seek</td><td>Prescription<br>PK__Prescrip__3214EC07589FC084</td><td>0</td><td>1</td><td>205</td><td>205</td><td>0.0</td><td>0.0</td><td>0.0076</td></tr><tr><td>12</td><td>124</td><td>Top</td><td><br></td><td>1</td><td>1</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0119</td></tr><tr><td>12</td><td>125</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0119</td></tr><tr><td>12</td><td>126</td><td>Filter</td><td><br></td><td>1</td><td>41</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0059</td></tr><tr><td>12</td><td>127</td><td>Index Seek</td><td>Prescription<br>AuthRxId_Id</td><td>3</td><td>41</td><td>41</td><td>3</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>129</td><td>Clustered Index Seek</td><td>Prescription<br>PK__Prescrip__3214EC07589FC084</td><td>1</td><td>1</td><td>41</td><td>41</td><td>0.0</td><td>0.0</td><td>0.0059</td></tr><tr><td>12</td><td>130</td><td>Row Count Spool</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0050</td></tr><tr><td>12</td><td>131</td><td>Filter</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0033</td></tr><tr><td>12</td><td>132</td><td>Clustered Index Seek</td><td>OweDispense<br>PK__OweDispe__D8C17F6D9C00E7C5</td><td>1</td><td>0</td><td>0</td><td>226</td><td>1.0</td><td>1.0</td><td>0.0033</td></tr><tr><td>12</td><td>133</td><td>Row Count Spool</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0050</td></tr><tr><td>12</td><td>134</td><td>Clustered Index Seek</td><td>OweDispense<br>PK__OweDispe__D8C17F6D9C00E7C5</td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>135</td><td>Table Spool</td><td><br></td><td>2</td><td>1,882</td><td>0</td><td>252</td><td>18.0</td><td>18.0</td><td>0.0212</td></tr><tr><td>12</td><td>136</td><td>Nested Loops</td><td><br></td><td>2</td><td>1,882</td><td>0</td><td>252</td><td>12.0</td><td>12.0</td><td>0.0095</td></tr><tr><td>12</td><td>137</td><td>Index Seek</td><td>Prescription<br>idx_Prescription_AuthorizationId</td><td>3</td><td>1,977</td><td>1,977</td><td>252</td><td>1.0</td><td>1.0</td><td>0.0033</td></tr><tr><td>12</td><td>138</td><td>Clustered Index Seek</td><td>Claim<br>PK__Claim__D8C17F6D06559381</td><td>1</td><td>1,882</td><td>5,139</td><td>1,977</td><td>9.0</td><td>9.0</td><td>0.0062</td></tr><tr><td>12</td><td>139</td><td>Row Count Spool</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0050</td></tr><tr><td>12</td><td>140</td><td>Clustered Index Seek</td><td>OweDispense<br>PK__OweDispe__D8C17F6D9C00E7C5</td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>141</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>142</td><td>Top</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>143</td><td>Clustered Index Seek</td><td>OweDispense<br>PK__OweDispe__D8C17F6D9C00E7C5</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>144</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>145</td><td>Top</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>146</td><td>Clustered Index Seek</td><td>OweDispense<br>PK__OweDispe__D8C17F6D9C00E7C5</td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>147</td><td>Top</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>148</td><td>Clustered Index Seek</td><td>OweDispense<br>PK__OweDispe__D8C17F6D9C00E7C5</td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>149</td><td>Top</td><td><br></td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>150</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>151</td><td>Clustered Index Seek</td><td>OweDispense<br>PK__OweDispe__D8C17F6D9C00E7C5</td><td>1</td><td>0</td><td>0</td><td>252</td><td>0.0</td><td>0.0</td><td>0.0058</td></tr><tr><td>12</td><td>152</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0362</td></tr><tr><td>12</td><td>153</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0362</td></tr><tr><td>12</td><td>154</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0296</td></tr><tr><td>12</td><td>155</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0230</td></tr><tr><td>12</td><td>156</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0197</td></tr><tr><td>12</td><td>157</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0164</td></tr><tr><td>12</td><td>158</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0164</td></tr><tr><td>12</td><td>159</td><td>Top</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>160</td><td>Nested Loops</td><td><br></td><td>1</td><td>1</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>161</td><td>Index Seek</td><td>Pharmacy<br>Pharmacy_Type</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>163</td><td>Clustered Index Seek</td><td>Pharmacy<br>PK__Pharmacy__3214EC070CFF78E9</td><td>1</td><td>1</td><td>1</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>164</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0099</td></tr><tr><td>12</td><td>165</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0099</td></tr><tr><td>12</td><td>166</td><td>Compute Scalar</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>167</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>168</td><td>Table Scan</td><td>#TEMPEXT<br></td><td>1</td><td>0</td><td>0</td><td>1</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>169</td><td>Clustered Index Seek</td><td>ExternalProfile<br>PK__External__3214EC07F1DBEE5B</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>170</td><td>Clustered Index Seek</td><td>Drug<br>PK__Drug__3214EC07F0E3371A</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>171</td><td>Concatenation</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>172</td><td>Filter</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>173</td><td>Constant Scan</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>174</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>175</td><td>Filter</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>176</td><td>Constant Scan</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0000</td></tr><tr><td>12</td><td>177</td><td>Index Seek</td><td>Drug<br>DrugDINProvince</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>178</td><td>Clustered Index Seek</td><td>DrugForm<br>PK__DrugForm__A25C5AA6C6C4D643</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>179</td><td>Clustered Index Seek</td><td>Drug<br>PK__Drug__3214EC07F0E3371A</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>180</td><td>Assert</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>181</td><td>Stream Aggregate</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>182</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>183</td><td>Stream Aggregate</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>184</td><td>Top</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>185</td><td>Index Seek</td><td>Note<br>Entity</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>186</td><td>Clustered Index Seek</td><td>Note<br>PK__Note__3214EC07DED1CB13</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>187</td><td>Assert</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>188</td><td>Stream Aggregate</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>189</td><td>Nested Loops</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0066</td></tr><tr><td>12</td><td>190</td><td>Stream Aggregate</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>191</td><td>Top</td><td><br></td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>192</td><td>Index Seek</td><td>Note<br>Entity</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr><tr><td>12</td><td>193</td><td>Clustered Index Seek</td><td>Note<br>PK__Note__3214EC07DED1CB13</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0.0</td><td>0.0</td><td>0.0033</td></tr></table><div class='card'><h2>Interpretation and limitations</h2><p>Actual elapsed time and CPU time are reported only when present in an actual execution plan. Estimated plans provide optimizer cost estimates, not measured time.</p><p>Operator elapsed values can overlap because execution-plan operators form a pipeline; statement time is the preferred executive timing measure.</p><p>Source-line mapping is best effort and requires the exact stored-procedure text corresponding to the plan.</p><p>Index and code recommendations require developer and DBA validation against the full workload before production change.</p></div></body></html>
