@@ -1,0 +1,64 @@
+Please revise `Phase1_Solution_Inventory_Assessment.md`.
+
+Do not analyze “Open Patient.” That was only an example and has not been confirmed as a workflow in this solution.
+
+Complete Phase 1 before performing detailed workflow analysis:
+
+1. Examine all 41 projects individually. For every project document:
+
+- project name and path;
+- purpose;
+- application, UI module, library, service, worker, website, report, database, or test classification;
+- startup point or important entry methods;
+- important classes and methods;
+- direct dependencies;
+- callers and downstream components;
+- read, write, or read/write database behavior;
+- threading or execution model;
+- exact source-file and symbol citations;
+- confidence level.
+
+2. Verify every relationship in the architecture diagram. Mark unproven relationships as `[INFERRED]` or `[RUNTIME-VERIFY]`.
+
+3. Discover the real application workflows by inspecting:
+
+- `App.xaml.cs`;
+- `BootStrapper.cs`;
+- `ShellViewModel.cs`;
+- navigation registrations;
+- UI commands and event handlers;
+- every `Nexxsys.Modules.*` project;
+- `PropelRxExtService`;
+- `CPS_Monitor`;
+- `PatientCenter.Web`;
+- printing, messaging, PrescribeIT, reporting, batch, prescription, pharmacy, inventory, doctor, and security code.
+
+4. Create a candidate-workflow table containing:
+
+- workflow name used by the code;
+- user, service, timer, queue, or job trigger;
+- exact entry class and method;
+- participating projects;
+- business purpose;
+- database and external-system involvement;
+- exact code citations;
+- runtime-verification requirements;
+- recommended analysis priority.
+
+Do not invent workflow names.
+
+5. Keep “preference retrieval and credential refresh” in a separate cross-cutting infrastructure section. Do not treat it automatically as the primary business workflow.
+
+6. Remove or sanitize passwords, connection strings, tokens, patient information, and other sensitive values.
+
+7. Update the Mermaid component architecture diagram using only verified relationships.
+
+8. Finish the report with:
+
+- the five strongest architecture findings;
+- the five most important missing pieces of evidence;
+- the five real workflows recommended for detailed analysis;
+- the best first workflow for scalability analysis and why;
+- a separate recommendation for investigating the SQL login failure.
+
+Update the existing Markdown report. Do not change production code, stored procedures, configuration, or deployment files. Do not begin Phase 2 yet. Every conclusion must cite the exact project, file, class, method, or stored procedure.
