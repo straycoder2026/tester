@@ -1,0 +1,75 @@
+Follow `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` and perform Phase 2 for this workflow only:
+
+`PropelRxExtService.ServiceImplementations.MessageOutQueueProcess`
+
+Create:
+
+`Phase2_MessageOutQueueProcess_Assessment.md`
+
+Do not modify production code, configuration, database objects, or deployment files.
+
+Trace this workflow completely from its real startup trigger to completion.
+
+Inspect and document:
+
+1. How `PropelRxExtService` starts and registers `MessageOutQueueProcess`.
+2. The exact method that starts the process.
+3. Whether it uses a timer, polling loop, scheduled job, thread, task, or another trigger.
+4. Every class and method called by the process.
+5. Every database call, query, stored procedure, function, and table used.
+6. How queue records are selected, claimed, locked, updated, completed, retried, or failed.
+7. Whether claiming work is atomic and whether two workers could process the same record.
+8. Polling frequency, empty polling, batch size, and concurrency limits.
+9. Transaction boundaries and how long transactions remain open.
+10. External communication performed for each message.
+11. Timeouts, retries, backoff, and duplicate-message protection.
+12. Idempotency and what happens if the service crashes during processing.
+13. Poison-message or dead-letter handling.
+14. Queue cleanup and retention.
+15. Logging, monitoring, queue-lag measurement, and alerting.
+16. Database chattiness, including calls inside loops and repeated calls.
+17. Threading, blocking calls, `.Wait()`, `.Result`, `Task.Run`, locks, and shared state.
+18. Connection creation and disposal behavior.
+19. Configuration values that affect polling, concurrency, timeouts, and retries. Cite configuration key names but do not expose secret values.
+
+Every conclusion must cite:
+
+- exact project;
+- source file;
+- class;
+- method;
+- line numbers when available;
+- stored procedure or SQL object;
+- configuration key where relevant.
+
+Label every statement as one of:
+
+- `[CODE-PROVEN]`
+- `[CONFIG-PROVEN]`
+- `[RUNTIME-PROVEN]`
+- `[INFERRED]`
+- `[RUNTIME-VERIFY]`
+- `[UNKNOWN]`
+
+Do not claim runtime frequency, latency, throughput, blocking, or queue volume without measurements.
+
+Generate these Mermaid diagrams:
+
+1. End-to-end workflow sequence diagram.
+2. Worker and queue architecture.
+3. Database-call and chattiness map.
+4. Read-versus-write path.
+5. Failure, retry, and recovery flow.
+
+Include:
+
+- top findings;
+- severity, effort, and risk tables;
+- exact runtime measurements still required;
+- quick wins;
+- medium-term improvements;
+- areas that should not be changed;
+- incremental target design that preserves the existing service and database;
+- validation and rollback steps for every recommendation.
+
+Finish with a concise conclusion stating whether `MessageOutQueueProcess` is actually a meaningful scalability risk or whether another workflow should be prioritized instead.
