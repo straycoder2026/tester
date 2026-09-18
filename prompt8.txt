@@ -1,0 +1,295 @@
+Create a final consolidated report named:
+
+`PropelRx_Architecture_Scalability_Assessment.md`
+
+Use and reconcile the completed reports from:
+
+- Phase 1 solution inventory;
+- Phase 2B `MessageOutQueueProcess`;
+- Phase 3 RxDetail prescription loading;
+- Phase 4 `ProcessNewRx/CreateRxs`.
+
+Read `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` and follow its final report structure.
+
+Do not modify production code, configuration, stored procedures, or database objects.
+
+## Evidence rules
+
+Every material conclusion must retain its exact project, file, class, method, line, stored-procedure, or SQL-object citations.
+
+Use:
+
+- `[CODE-PROVEN]`
+- `[CONFIG-PROVEN]`
+- `[RUNTIME-PROVEN]`
+- `[INFERRED]`
+- `[RUNTIME-VERIFY]`
+- `[UNKNOWN]`
+
+Do not convert inferred behavior into fact during consolidation.
+
+Do not invent latency, throughput, database-call counts, production frequency, improvement percentages, or deployment topology.
+
+Recalculate severity rather than copying it automatically from the phase reports. A statically visible loop, large result-set contract, or synchronous wait is a performance risk until runtime impact is measured.
+
+## Required report structure
+
+### 1. Executive summary
+
+Explain in business language:
+
+- how PropelRx is structured;
+- the principal scalability risks;
+- the confirmed correctness/reliability defects;
+- what remains unknown;
+- why incremental improvement is appropriate;
+- the safest order of work.
+
+### 2. Current architecture
+
+Include:
+
+- all major applications, modules, shared layers, services, workers, reports, and database dependencies;
+- verified versus inferred relationships;
+- solution/component Mermaid diagram;
+- deployment/runtime topology diagram, with uncertain elements marked `verify`.
+
+### 3. Analyzed workflows
+
+Summarize each workflow separately:
+
+1. `MessageOutQueueProcess`
+2. RxDetail navigation, locking, and selected-prescription loading
+3. `ProcessNewRx/CreateRxs`
+
+For each include:
+
+- trigger;
+- end-to-end call path;
+- read/write behavior;
+- database and external interactions;
+- threading/UI behavior;
+- transaction boundaries;
+- error and recovery behavior;
+- symbolic database-call model;
+- exact evidence citations;
+- runtime-verification requirements.
+
+### 4. Confirmed defects
+
+Keep confirmed defects separate from performance risks.
+
+Include the queue-worker defects:
+
+- `ProcessCommunication(...)` always returns `true`;
+- successful Diem communications may not enter the success list;
+- `First(...)` followed by an ineffective null check.
+
+For every defect provide:
+
+- exact citation;
+- triggering execution path;
+- impact;
+- effort;
+- implementation risk;
+- test required;
+- rollback approach.
+
+Do not classify the following as confirmed defects without requirements or runtime proof:
+
+- RxDetail N+1-like locking/hydration;
+- 67-result-set prescription contract;
+- dispatcher-pumping waits;
+- ProcessNewRx partial-success behavior;
+- retry duplicate risk.
+
+### 5. Scalability and performance risks
+
+Cover:
+
+- queue selection/claim separation;
+- conditional multi-worker race;
+- potentially abandoned `I` queue records;
+- per-operation database round trips;
+- per-patient/Rx/caregiver/communication queue chattiness;
+- per-Rx lock hydration;
+- repeated selected-Rx hydration;
+- `RxDataPoint.All` and the multi-result-set payload;
+- synchronous service/database work from the UI path;
+- selection-triggered loading;
+- ProcessNewRx per-item/per-action writes;
+- partial-success retry amplification.
+
+For each state:
+
+- mechanism;
+- affected workflow;
+- evidence;
+- confidence;
+- runtime measurement needed;
+- incremental mitigation.
+
+### 6. Data consistency and reliability
+
+Include:
+
+- queue state transitions;
+- queue crash/restart behavior;
+- atomic claim uncertainty;
+- prescription item transaction boundaries;
+- operations outside the core prescription transaction;
+- batch partial-success behavior;
+- staging, attachment, PIT, OCR, lock, claim, and print consistency;
+- idempotency and duplicate-submission uncertainties.
+
+### 7. Database chattiness
+
+Clearly distinguish:
+
+- database round trips;
+- stored-procedure executions;
+- result sets returned by one execution;
+- calls inside loops;
+- external network calls.
+
+Do not describe 67 result sets as 67 database round trips.
+
+Include symbolic formulas and their assumptions. Identify nested operations that are not fully expanded.
+
+### 8. Required Mermaid diagrams
+
+Generate and validate:
+
+1. Solution/component architecture.
+2. Deployment/runtime topology.
+3. `MessageOutQueueProcess` sequence.
+4. Queue/worker architecture.
+5. Queue database-chattiness map.
+6. RxDetail loading sequence.
+7. RxDetail UI-loading timeline.
+8. ProcessNewRx write sequence.
+9. Read-versus-write architecture.
+10. Transaction and consistency boundaries.
+11. Current versus incremental target architecture.
+
+Keep diagrams readable and split oversized diagrams.
+
+### 9. Top findings table
+
+Use stable IDs and include:
+
+- finding;
+- evidence status;
+- severity;
+- confidence;
+- affected workflow;
+- precise mechanism;
+- citations;
+- runtime verification.
+
+### 10. Recommendations table
+
+For every recommendation include:
+
+- linked finding IDs;
+- proposed incremental change;
+- expected qualitative benefit;
+- effort;
+- delivery risk;
+- prerequisites;
+- validation;
+- rollout;
+- rollback;
+- exact change area.
+
+### 11. Quick wins
+
+Limit quick wins to evidence-supported, low-disruption changes such as:
+
+- correcting confirmed queue-worker defects;
+- adding workflow correlation and timing;
+- recording queue selected/claimed/completed/failed counts;
+- measuring queue lag and stale `I` records;
+- measuring RxDetail first-render timing and SQL executions;
+- exposing ProcessNewRx partial-success outcomes clearly;
+- protecting against repeated submission where evidence supports it.
+
+Do not describe major async rewrites, schema changes, or stored-procedure redesigns as quick wins.
+
+### 12. Medium-term incremental changes
+
+Evaluate:
+
+- conditional atomic queue claiming;
+- stale in-process recovery;
+- targeted queue batching;
+- reducing per-Rx lock hydration;
+- avoiding redundant selected-Rx reloads;
+- deferring secondary RxDetail data;
+- retry-safe/idempotent prescription creation;
+- improved partial-success reconciliation;
+- verified SQL tuning based on Query Store or execution plans.
+
+Preserve the existing Prism UI, service layer, DAO layer, Windows services, and database unless evidence later proves a boundary must change.
+
+### 13. Areas not to change
+
+Explicitly identify:
+
+- stable module composition;
+- existing service/DAO contracts without hotspot evidence;
+- database objects lacking runtime evidence;
+- vendor/integration boundaries;
+- business and regulatory logic;
+- components outside measured critical paths.
+
+### 14. Runtime-verification plan
+
+Provide executable measurement plans for:
+
+- queue instance count and deployment topology;
+- duplicate queue selection;
+- stale `I` records;
+- queue lag and retry distribution;
+- RxDetail SQL executions and time to first meaningful render;
+- `p_GetPrescription_MultiRS` duration, reads, result sizes, and plans;
+- lock contention;
+- ProcessNewRx partial failure followed by retry;
+- duplicate prescription/claim/attachment behavior;
+- actual adjudication and printing reachability.
+
+Include privacy-safe logging requirements and do not log patient or prescription data.
+
+### 15. Prioritized roadmap
+
+Organize into:
+
+- Stage 0: verify and instrument;
+- Stage 1: correct confirmed defects;
+- Stage 2: remove proven waste and duplicate work;
+- Stage 3: harden queue and prescription consistency;
+- Stage 4: optimize verified SQL/UI hotspots;
+- Stage 5: remeasure and reassess.
+
+### 16. Incremental target architecture
+
+Show:
+
+- what remains unchanged;
+- where instrumentation is added;
+- where queue claiming/recovery is hardened;
+- where RxDetail loading is reduced or deferred;
+- where prescription retries are made safer;
+- how deployment can occur workflow by workflow.
+
+### 17. Decision summary
+
+Finish with:
+
+- what CareRx can approve now;
+- what requires runtime evidence;
+- what should be deferred;
+- the first three implementation candidates;
+- the first three measurements to establish.
+
+Rewrite everything as one cohesive report. Do not paste phase reports together or preserve contradictions.
