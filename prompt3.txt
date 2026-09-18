@@ -1,0 +1,79 @@
+Complete the unfinished Phase 2B analysis in `Phase2_MessageOutQueueProcess_Assessment.md`.
+
+The required source files already exist in the solution. Use workspace search and symbol navigation to read the relevant methods in:
+
+- `Shared.DataAccess\Implementation\SharedDAO.cs`
+- `Shared.DataAccess\Implementation\PatientDAO.cs`
+- `Shared.DataAccess\Interfaces\ISharedDAO.cs`
+- `Shared.DataAccess\Interfaces\IPatientDAO.cs`
+- `Shared.DataAccess\DapperDbContext.cs`
+
+Locate and trace the exact DAO implementations for:
+
+- `GetMessageOutQueues`
+- `SetQueuesProcessingInfo`
+- `SetQueuesErrorInfo`
+- `CreateCommunication`
+- `CancelMessageOutQueues`
+- `GetCommunications`
+- `SaveCommunicationSendingResults`
+- `SaveMsgOutQueueSendingResults`
+- `IsPatientInCare`
+- `GetCaregiversForPickupReminders`
+- `GetRxCommunicationDetails`
+- `PatientDAO.GetPatient`
+
+For each method, document:
+
+- exact project, file, class, method, and line numbers;
+- SQL text or stored-procedure name;
+- parameters;
+- tables, views, functions, and other procedures touched;
+- read or write classification;
+- connection behavior;
+- transaction behavior;
+- whether it is called once per polling cycle, patient, caregiver, prescription, or communication;
+- error and retry behavior.
+
+Search the entire solution for every referenced stored-procedure or SQL-object definition. If a definition is not in the repository, state its exact name and mark it `[RUNTIME-VERIFY]`.
+
+Specifically determine:
+
+1. Whether `GetMessageOutQueues` only selects records or also claims them.
+2. Whether selection and `SetQueuesProcessingInfo` are separate database operations.
+3. Whether two worker instances could select the same records before either marks them in process.
+4. Whether `SetQueuesProcessingInfo` performs an atomic conditional update.
+5. Which statuses represent pending, in-process, completed, failed, canceled, and retryable work.
+6. How abandoned in-process records are recovered after a crash.
+7. Whether queue queries enforce a maximum batch size.
+8. Whether database connections are opened separately for each DAO call.
+9. Whether multiple writes for one patient share a transaction.
+10. Whether any external network call occurs while a database transaction is open.
+11. The static database-call-count formula for one polling cycle.
+
+Create a call-count formula using variables such as:
+
+- `P` = patients in the cycle;
+- `R` = prescription/message rows;
+- `C` = caregivers;
+- `M` = communications created;
+- `G` = channel/type groups.
+
+Show minimum, typical conditional, and worst-case discoverable call counts without inventing runtime values.
+
+Revalidate defects `D-001`, `D-002`, and `D-003` with exact line numbers. Downgrade any defect that cannot be supported by the complete method body.
+
+Rewrite the report as one cohesive document. Remove duplicated sections and the contradictory statements about whether `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` was found. Do not merely append another section.
+
+Add:
+
+- DAO and SQL evidence table;
+- queue status-transition table;
+- transaction-boundary diagram;
+- database-call-count model;
+- multi-worker race timeline;
+- crash/restart analysis;
+- confirmed defects with exact citations;
+- revised findings and recommendations.
+
+Do not modify production code, configuration, or database objects. If a required source method cannot be read, identify that exact method as missing instead of replacing it with an inference.
