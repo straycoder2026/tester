@@ -34,34 +34,34 @@ Not found in repository search and not provided:
 
 | Method | Project/File/Class/Line | SQL text or procedure | Params | Objects touched | R/W | Connection behavior | Transaction behavior | Call granularity | Error/retry behavior |
 |---|---|---|---|---|---|---|---|---|---|
-| `GetMessageOutQueues` | `Shared.DataAccess/Implementation/SharedDAO.cs` `SharedDAO.GetMessageOutQueues` `4420-4428` | `EXEC dbo.p_ExtendedService_GetQueues @QueueTimeInSec, @DownTimeSendDelayInSec` | `queueTimeInSec`, `downTimeSendDelayInSec` | `MessageOutQueue`, `Prescription`, `Patient`, `PrescriptionWorkflow`, `Communication`, `f_isMTS`, `f_preferenceRetrieve` | Read | `Query<T>` (`DapperDbContext` `101-110`) -> `ExecuteOnNewConnection` (`557-565`) | No app-layer shared transaction | Once per polling cycle (`MessageOutQueueService` `76-79`) | No local catch/retry |
-| `SetQueuesProcessingInfo` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4411-4418` | `EXEC dbo.p_GreenLight_SetQueuesProcessingInfo @TransactionIds` | CSV `TransactionIds` | Updates `MessageOutQueue` via `string_split`; sets `Status='I'`, `ProcessStartTime=GETDATE()`; uses `f_IsNumeric` | Write | New connection per call | Proc-local only; no conditional status predicate | Per patient iteration (`127-130`), and cancellation flow (`CancelCommunicationService` `28-31`) | No local catch/retry |
-| `SetQueuesErrorInfo` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4544-4552` | `EXEC dbo.p_GreenLight_SetQueuesErrorInfo @TransactionIds, @ErrorDesc` | CSV IDs, `errorDesc` | Updates `MessageOutQueue` via `string_split`; sets `Status='F'`; increments attempts; uses `f_IsNumeric` | Write | New connection per call | Proc-local only | Error path per patient (`MessageOutQueueService` `146-154`) and cancel flow (`48-55`) | No local retry |
-| `CreateCommunication` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4440-4468` | `EXEC dbo.p_Communication_Insert ... @NewId OUTPUT` | ~20 input params + output `@NewId` | Validates `MessageOutQueueTransId`, checks `MessageOutQueue` existence, may check `PrescriptionWorkflow` (`PIC`) and skip insert, inserts into `Communication`, logs via `p_LogNexxsysSrvMsg`/`p_LogApplicationMessage` | Write | `Execute` (`235-244`) -> new connection (`557-565`) | Proc explicitly states caller manages transaction; proc itself does not begin/commit/rollback | Per communication (`MessageOutQueueService` `1210-1217`) | Proc raises errors via `RAISERROR` on validation/insert failures; no retry logic |
-| `CancelMessageOutQueues` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4479-4487` | `EXEC dbo.p_NexApi_CancelMessageOutQueues @MessageOutQueueTransIds, @ReasonText` | trans IDs, reason text | Updates `MessageOutQueue`; sets `Status='C'`; uses `f_IsNumeric` | Write | New connection per call | Proc-local only | Per patient when duplicates exist (`1221-1225`) | No local retry |
-| `GetCommunications` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4430-4438` | `EXEC dbo.p_NexApi_GetCommunications @PatientId, @MessageOutQueueTransIds` | `patientId`, trans IDs | Reads `Communication`; filters by `MessageOutQueueTransId`, `PatientId/OnBehalfOfPatientId`; uses `string_split`, `f_IsNumeric` | Read | New connection per call | No app-layer shared transaction | Conditional resend branch (`1237-1244`) | No local retry |
-| `SaveCommunicationSendingResults` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4496-4506` | `EXEC dbo.p_ExtendedService_SaveCommunicationSendingResults ...` | success IDs, failed IDs, correlation, delivered flag | Updates `Communication`; failed => `FL`; success => `TS` or `CO` | Write | New connection per call | Proc-local only | Per send-result batch (`1160-1201`) | No local retry |
-| `SaveMsgOutQueueSendingResults` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4508-4518` | `EXEC dbo.p_ExtendedService_SaveMsgOutQueueSendingResults ...` | success trans IDs, failed trans IDs, program code, delivered flag | Reads `APPLICATIONDEF`; updates `MessageOutQueue`; uses `f_IsNumeric` | Write | New connection per call | Proc-local only | Per send-result batch (`1160-1201`) | No local retry |
-| `IsPatientInCare` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4520-4529` | `SELECT dbo.f_IsPatientInCare(@PatientId)` | `patientId` | Function checks `f_GetLatestConsentForPicRelationships(@PatientId,1)` for active non-expired `CGV` consent and returns bit | Read | New connection per call | No app-layer shared transaction | Per candidate communication requiring caregiver resolution (`737`) | No local retry |
-| `GetCaregiversForPickupReminders` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4531-4542` | `EXEC dbo.p_NexApi_PTSAPI_GetCaregiversForPickupReminders ...` | `picPatientId`, reminder/sensitive flags | Reads `Preference`, `Patient`, `PatientProgramEnrollment`; uses function `f_GetLatestConsentForPicRelationships`; filters active consent and sensitivity rules | Read | New connection per call | No app-layer shared transaction | Per eligible communication (`741-747`) | No local retry |
-| `GetRxCommunicationDetails` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4470-4477` | `EXEC dbo.p_NexApi_PTSAPI_GetRxCommunicationDetails @RxId` | `rxId` | Reads `Preference`, `Prescription`, `Drug`, `PrescriptionIVR` | Read | New connection per call | No app-layer shared transaction | Per latest queue item per Rx (`274-283`) | No local retry |
-| `PatientDAO.GetPatient` | `Shared.DataAccess/Implementation/PatientDAO.cs` `1103-1279`, wrapper `1283-1291` | Inline patient `SELECT` + conditional dependent queries by `PatientDataPoint` | `patientId`, `loadDataPoint`/`eagerLoad` | `Patient`, `PatientNMS`, `AddressRole`, `Address`, `f_DecryptString` + additional conditional objects | Read | Each internal Dapper call opens new connection | No single transaction across full load | Per patient and per caregiver lookup | No method-level retry |
+| `GetMessageOutQueues` | `Shared.DataAccess/Implementation/SharedDAO.cs` `SharedDAO.GetMessageOutQueues` `4420-4428` | `EXEC dbo.p_ExtendedService_GetQueues @QueueTimeInSec, @DownTimeSendDelayInSec` | `queueTimeInSec`, `downTimeSendDelayInSec` | `MessageOutQueue`, `Prescription`, `Patient`, `PrescriptionWorkflow`, `Communication`, `f_isMTS`, `f_preferenceRetrieve` | Read | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | No app-layer shared transaction | Once per polling cycle (`MessageOutQueueService` `76-79`) | No local catch/retry |
+| `SetQueuesProcessingInfo` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4411-4418` | `EXEC dbo.p_GreenLight_SetQueuesProcessingInfo @TransactionIds` | CSV `TransactionIds` | Updates `MessageOutQueue` via `string_split`; sets `Status='I'`, `ProcessStartTime=GETDATE()`; uses `f_IsNumeric` | Write | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | Proc-local only; no conditional status predicate | Per patient iteration (`127-130`), and cancellation flow (`CancelCommunicationService` `28-31`) | No local catch/retry |
+| `SetQueuesErrorInfo` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4544-4552` | `EXEC dbo.p_GreenLight_SetQueuesErrorInfo @TransactionIds, @ErrorDesc` | CSV IDs, `errorDesc` | Updates `MessageOutQueue` via `string_split`; sets `Status='F'`; increments attempts; uses `f_IsNumeric` | Write | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | Proc-local only | Error path per patient (`MessageOutQueueService` `146-154`) and cancel flow (`48-55`) | No local retry |
+| `CreateCommunication` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4440-4468` | `EXEC dbo.p_Communication_Insert ... @NewId OUTPUT` | ~20 input params + output `@NewId` | Validates `MessageOutQueueTransId`, checks `MessageOutQueue` existence, may check `PrescriptionWorkflow` (`PIC`) and skip insert, inserts into `Communication`, logs via `p_LogNexxsysSrvMsg`/`p_LogApplicationMessage` | Write | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | Proc explicitly states caller manages transaction; proc itself does not begin/commit/rollback | Per communication (`MessageOutQueueService` `1210-1217`) | Proc raises errors via `RAISERROR` on validation/insert failures; no retry logic |
+| `CancelMessageOutQueues` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4479-4487` | `EXEC dbo.p_NexApi_CancelMessageOutQueues @MessageOutQueueTransIds, @ReasonText` | trans IDs, reason text | Updates `MessageOutQueue`; sets `Status='C'`; uses `f_IsNumeric` | Write | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | Proc-local only | Per patient when duplicates exist (`1221-1225`) | No local retry |
+| `GetCommunications` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4430-4438` | `EXEC dbo.p_NexApi_GetCommunications @PatientId, @MessageOutQueueTransIds` | `patientId`, trans IDs | Reads `Communication`; filters by `MessageOutQueueTransId`, `PatientId/OnBehalfOfPatientId`; uses `string_split`, `f_IsNumeric` | Read | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | No app-layer shared transaction | Conditional resend branch (`1237-1244`) | No local retry |
+| `SaveCommunicationSendingResults` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4496-4506` | `EXEC dbo.p_ExtendedService_SaveCommunicationSendingResults ...` | success IDs, failed IDs, correlation, delivered flag | Updates `Communication`; failed => `FL`; success => `TS` or `CO` | Write | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | Proc-local only | Per send-result batch (`1160-1201`) | No local retry |
+| `SaveMsgOutQueueSendingResults` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4508-4518` | `EXEC dbo.p_ExtendedService_SaveMsgOutQueueSendingResults ...` | success trans IDs, failed trans IDs, program code, delivered flag | Reads `APPLICATIONDEF`; updates `MessageOutQueue`; uses `f_IsNumeric` | Write | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | Proc-local only | Per send-result batch (`1160-1201`) | No local retry |
+| `IsPatientInCare` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4520-4529` | `SELECT dbo.f_IsPatientInCare(@PatientId)` | `patientId` | Function checks `f_GetLatestConsentForPicRelationships(@PatientId,1)` for active non-expired `CGV` consent and returns bit | Read | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | No app-layer shared transaction | Per candidate communication requiring caregiver resolution (`737`) | No local retry |
+| `GetCaregiversForPickupReminders` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4531-4542` | `EXEC dbo.p_NexApi_PTSAPI_GetCaregiversForPickupReminders ...` | `picPatientId`, reminder/sensitive flags | Reads `Preference`, `Patient`, `PatientProgramEnrollment`; uses function `f_GetLatestConsentForPicRelationships`; filters active consent and sensitivity rules | Read | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | No app-layer shared transaction | Per eligible communication (`741-747`) | No local retry |
+| `GetRxCommunicationDetails` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4470-4477` | `EXEC dbo.p_NexApi_PTSAPI_GetRxCommunicationDetails @RxId` | `rxId` | Reads `Preference`, `Prescription`, `Drug`, `PrescriptionIVR` | Read | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | No app-layer shared transaction | Per latest queue item per Rx (`274-283`) | No local retry |
+| `PatientDAO.GetPatient` | `Shared.DataAccess/Implementation/PatientDAO.cs` `1103-1279`, wrapper `1283-1291` | Inline patient `SELECT` + conditional dependent queries by `PatientDataPoint` | `patientId`, `loadDataPoint`/`eagerLoad` | `Patient`, `PatientNMS`, `AddressRole`, `Address`, `f_DecryptString` + additional conditional objects | Read | Each DAO operation creates/opens its own connection scope and produces a separate database round trip; ADO.NET pooling may reuse an existing physical SQL connection. | No single transaction across full load | Per patient and per caregiver lookup | No method-level retry |
 
 ---
 
 ## Required determinations (1–11)
 
-1. `GetMessageOutQueues` select-only vs claim behavior: **SELECT-ONLY**.
-2. Selection and `SetQueuesProcessingInfo` as separate DB ops: **YES**.
-3. Two workers can select same records before in-process mark: **POSSIBLE**.
-4. `SetQueuesProcessingInfo` atomic conditional update: **NO**. Update is set-based for provided IDs, but has no conditional predicate (e.g., no `Status='Q'` guard).
-5. Status mapping: `Q` pending, `I` in-process, `F` failed/retryable (<=3 attempts), `S/D` success completed, `C` canceled.
-6. Abandoned in-process crash recovery: **No recovery logic evidenced in provided SQL set** for `I` rows; failed/down recovery exists.
-7. Max batch size in queue query: **NOT EVIDENCED**.
-8. DB connections opened separately per DAO call: **YES**.
-9. Multiple writes for one patient share transaction: **NO APP-LAYER SHARED TRANSACTION EVIDENCE**; additionally, `p_Communication_Insert` explicitly states transaction management is caller-owned.
-10. External network call while DB transaction open: **NO APP-LAYER EVIDENCE**.
-11. Static DB-call-count formula: see model below.
+1. `[CODE-PROVEN]` `GetMessageOutQueues` select-only vs claim behavior: **SELECT-ONLY**.
+2. `[CODE-PROVEN]` Selection and `SetQueuesProcessingInfo` as separate DB ops: **YES**.
+3. `[CODE-PROVEN]` Two workers can select same records before in-process mark: **POSSIBLE when more than one worker/service instance is running concurrently**. `[RUNTIME-VERIFY]` concurrent deployment/instance count.
+4. `[CODE-PROVEN]` `SetQueuesProcessingInfo` atomic conditional update: **NO**. Update is set-based for provided IDs, but has no conditional predicate (e.g., no `Status='Q'` guard).
+5. `[CODE-PROVEN]` Status mapping: `Q` pending, `I` in-process, `F` failed/retryable (<=3 attempts), `S/D` success completed, `C` canceled.
+6. `[INFERRED]` Abandoned in-process crash recovery: **No stale-`I` recovery was found in the analyzed path; solution-wide recovery remains `[RUNTIME-VERIFY]`.**
+7. `[CODE-PROVEN]` Max batch size in queue query: **NOT EVIDENCED**.
+8. `[CODE-PROVEN]` Connection behavior: **Each DAO operation creates/opens its own connection scope and produces a separate database round trip. ADO.NET pooling may reuse an existing physical SQL connection.**
+9. `[CODE-PROVEN]` Multiple writes for one patient share transaction: **NO APP-LAYER SHARED TRANSACTION EVIDENCE**; additionally, `p_Communication_Insert` explicitly states transaction management is caller-owned.
+10. `[INFERRED]` External network call while DB transaction open: **NO APP-LAYER EVIDENCE**.
+11. `[CODE-PROVEN]` Static DB-call-count formula: see model below.
 
 ---
 
@@ -69,11 +69,12 @@ Not found in repository search and not provided:
 
 | From | To | Trigger method | Condition |
 |---|---|---|---|
-| `Q/F/C` | `I` | `SetQueuesProcessingInfo` | For passed IDs, proc sets `Status='I'` and `ProcessStartTime=GETDATE()` |
-| `Q/F` | `S` | `SaveMsgOutQueueSendingResults` | Success list and `@IsDelivered=0` |
-| `Q/F` | `D` | `SaveMsgOutQueueSendingResults` | Success list and `@IsDelivered=1` |
-| `Q/F` | `F` | `SaveMsgOutQueueSendingResults` / `SetQueuesErrorInfo` | Failed list or catch path |
-| `*` | `C` | `CancelMessageOutQueues` | Duplicate queue cancellation |
+| `Any status for passed IDs` | `I` | `SetQueuesProcessingInfo` | Procedure does not restrict prior status; in analyzed send path IDs come from rows selected by `GetMessageOutQueues` (typically `Q/F/C` in provided queue SQL). |
+| `Unrestricted by procedure` (analyzed path usually `I`) | `S` | `SaveMsgOutQueueSendingResults` | Success ID list, `@IsDelivered=0`; procedure does not filter previous status. |
+| `Unrestricted by procedure` (analyzed path usually `I`) | `D` | `SaveMsgOutQueueSendingResults` | Success ID list, `@IsDelivered=1`; procedure does not filter previous status. |
+| `Unrestricted by procedure` (analyzed path usually `I`) | `F` | `SaveMsgOutQueueSendingResults` | Failed ID list; procedure does not filter previous status. |
+| `Any status for passed IDs` | `F` | `SetQueuesErrorInfo` | Catch-path update; procedure does not filter previous status and increments attempt count. |
+| `Any status for passed IDs` | `C` | `CancelMessageOutQueues` | Duplicate queue cancellation; procedure does not filter previous status. |
 | `F` | eligible retry | `GetMessageOutQueues` | `SendAttemptNumber <= 3`; includes downtime-delay branches |
 
 ---
@@ -118,19 +119,56 @@ sequenceDiagram
 
 - Retry filter: `Status='F'` with `SendAttemptNumber <= 3`.
 - Downtime resend branch exists via `@DownTimeDelayDate`.
-- No provided SQL path reselects `Status='I'` rows; stale in-process items require separate recovery mechanism not yet provided.
+- No stale-`I` recovery was found in the analyzed path; solution-wide recovery remains `[RUNTIME-VERIFY]`.
 
 ---
 
 ## Database-call-count model
 
-Variables: `P`, `R`, `C`, `M`, `G`.
+Variables:
+- `P`: patients returned by queue poll
+- `R`: latest queue rows processed for Rx/candidate communication logic
+- `C`: caregiver patient IDs returned/loaded
+- `M`: communications inserted (`CreateCommunication`)
+- `G`: outbound result-save batches (each batch writes comm + queue results)
+- `X`: patient-iteration exceptions that execute `SetQueuesErrorInfo` (`0..P`)
+- `U`: patients that execute resend fetch (`GetCommunications`) (`0..P`)
+- `D`: patients with duplicate queues cancelled (`CancelMessageOutQueues`) (`0..P`)
 
-`Calls_min = 1`
+### Multiplier map (static)
 
-`Calls_typical = 1 + P + P + R + R + R + C + M + 2G`
+| Call site | Multiplier |
+|---|---|
+| `GetMessageOutQueues` | `1` per polling cycle |
+| `PatientService.GetPatientById` (primary patient) | `P` |
+| `SetMessageOutQueuesProcessingInfo` | up to `P` |
+| `GetRxCommunicationDetails` | up to `R` |
+| `IsPatientInCare` | up to `R` |
+| `GetCaregiversForPickupReminders` | up to `R` (conditional) |
+| `PatientService.GetPatientById` (caregiver load) | `C` |
+| `GetCommunications` (resend path) | `U` |
+| `CreateCommunication` | `M` |
+| `CancelMessageOutQueues` | `D` |
+| `SaveCommunicationSendingResults` | `G` |
+| `SaveMsgOutQueueSendingResults` | `G` |
+| `SetQueuesErrorInfo` | `X` |
 
-`Calls_worst = 1 + P + P + R + R + R + C + P + M + P + 2G + P`
+### Statically guaranteed minimum
+`Calls_min = 1`  (queue poll only; occurs even when no rows are returned)
+
+### Conditional symbolic formula
+`Calls_cycle = 1 + P + P + R + R + R + C + U + M + D + G + G + X`
+
+Equivalent:
+`Calls_cycle = 1 + 2P + 3R + C + U + M + D + 2G + X`
+
+### Loop-dependent upper-bound formula (structure only)
+Given `U<=P`, `D<=P`, `X<=P`:
+`Calls_upper = 1 + 5P + 3R + C + M + 2G`
+
+Assumptions:
+- Upper bound is structural and still data-dependent; no runtime cardinalities were measured.
+- `PatientDAO.GetPatient` internally executes additional conditional DB calls by `PatientDataPoint`; those nested calls are not expanded into fixed coefficients here.
 
 ---
 
@@ -138,25 +176,40 @@ Variables: `P`, `R`, `C`, `M`, `G`.
 
 | Defect | Revalidation result | Exact citations |
 |---|---|---|
-| `D-001` | **Confirmed** (selection/claim split) | `MessageOutQueueService.cs` `76-79`, `127-130`; `SharedDAO.cs` `4420-4428`, `4411-4418`; `p_ExtendedService_GetQueues` is select-only |
-| `D-002` | **Confirmed** (duplicate-selection window possible) | `MessageOutQueueService.cs` `76-130`, `225-320`; `p_GreenLight_SetQueuesProcessingInfo` has no conditional claim predicate |
-| `D-003` | **Confirmed** (no app-layer shared transaction across multi-write flow) | `DapperDbContext.cs` `101-110`, `235-244`, `557-565`; `MessageOutQueueService.cs` `1210-1225`, `1184-1200` |
+| `D-001` | **Confirmed** (`ProcessCommunication(...)` always returns `true`) | `MessageOutQueueService.cs` `66-158`, especially unconditional `return true` at `157`; caller false-path check exists at `PropelRxExtService/ServiceImplementations/MessageOutQueueProcess.cs` `52-55`. |
+| `D-002` | **Confirmed** (successful Diem communications may not be added to success list) | `MessageOutQueueService.cs` `935-977`: initializes `successCommunications` at `944`, only assigns failures at `968-970`, then saves results at `971-977` without any success add path. |
+| `D-003` | **Confirmed** (`First(...)` followed by ineffective null check) | `MessageOutQueueService.cs` `811-816` and `887-892`: `First(...)` is used, then `if (programOutboundInterface == null)` check follows; null check is unreachable when no match because `First` throws. |
+
+---
+
+## Additional architecture/scalability findings (separate from D-001..D-003)
+
+| ID | Finding | Evidence |
+|---|---|---|
+| `F-101` | Queue selection and claim are separate operations. | `MessageOutQueueService.cs` `76-79`, `127-130`; `p_ExtendedService_GetQueues` is select-only. |
+| `F-102` | Duplicate-selection race window exists if multiple worker/service instances run concurrently. | `MessageOutQueueService.cs` `76-130`, `225-320`; claim update has no status guard in `p_GreenLight_SetQueuesProcessingInfo`. |
+| `F-103` | Claim update is unconditional for passed IDs. | `p_GreenLight_SetQueuesProcessingInfo`: updates by ID list with no prior-status predicate. |
+| `F-104` | Potentially abandoned `I` rows in analyzed path. | Queue-selection SQL filters `Q` and `F` retry paths; no stale-`I` recovery was found in the analyzed path, while solution-wide recovery remains `[RUNTIME-VERIFY]`. |
+| `F-105` | Each DAO operation creates/opens its own connection scope and produces a separate database round trip. ADO.NET pooling may reuse an existing physical SQL connection. | `DapperDbContext.cs` `101-110`, `235-244`, `557-565`. |
+| `F-106` | Workflow is DB-chatty due to per-patient/per-Rx/per-caregiver/per-communication loops. | `MessageOutQueueService.cs` `85-155`, `274-320`, `732-756`, `1210-1217`, `1160-1201`. |
 
 ---
 
 ## Revised findings and recommendations
 
 Findings:
-1. Queue fetch is select-only; claim is separate.
-2. Pre-claim race window exists.
-3. Queue status evidence confirms `Q/I/F/S/D/C` including explicit in-process `I`.
-4. Retry and downtime-resend logic is SQL-proven.
-5. DAO behavior is connection-per-call without cross-call app transaction.
+1. `D-001`: `ProcessCommunication(...)` always returns `true` (`MessageOutQueueService.cs` `157`).
+2. `D-002`: successful Diem sends can miss success-list population (`935-977`).
+3. `D-003`: `First(...)` followed by ineffective null check (`811-816`, `887-892`).
+4. `F-101/F-102/F-103`: queue claim path is split, concurrency-sensitive, and unconditional by status.
+5. `F-104/F-105/F-106`: analyzed path shows potential stale-`I` handling gap, one DAO round trip per operation, and loop-driven chattiness.
 
 Recommendations:
-1. Add conditional/atomic claim semantics to queue claim path (e.g., guard current status and return claimed rows in one operation).
-2. Add stale `I` recovery strategy (timeout-based requeue to `F` or `Q`) with explicit criteria.
-3. Add per-cycle telemetry (selected/claimed/duplicate/retry counts).
-4. Validate current retry/downtime thresholds operationally.
+1. Preserve and track original defects `D-001..D-003` separately from queue architecture items.
+2. For `F-101/F-102/F-103`, implement conditional/atomic claim semantics (status guard + claimed-row return) if multi-instance runtime is confirmed.
+3. For `F-104`, add stale-`I` recovery strategy (timeout-based requeue with criteria), then verify solution-wide behavior.
+4. For `F-106`, use the multiplier map to prioritize chattiness reduction and instrument real cardinalities before changing batching logic.
+
+_End of report._
 
 _End of report._
