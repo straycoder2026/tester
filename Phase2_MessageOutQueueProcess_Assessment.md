@@ -1,577 +1,162 @@
-# Phase 2 Assessment: `PropelRxExtService.ServiceImplementations.MessageOutQueueProcess`
+# Phase 2B — MessageOutQueueProcess DAO/SQL Gap Assessment (Completed Re-Run)
 
-## 0) Scope, constraints, and evidence quality
-- [CODE-PROVEN] Workflow analyzed: `PropelRxExtService.ServiceImplementations.MessageOutQueueProcess`.
-- [CODE-PROVEN] No production code/config/database/deployment artifacts were modified.
-- [UNKNOWN] `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` was not found in workspace in this session.
-- [CODE-PROVEN] Analysis below is based on source snippets provided for these files/classes:
-  - `PropelRxExtService\Services\PropelRxExtService.cs` (`PropelRxExtService` service host)
-  - `PropelRxExtService\ServiceImplementations\MessageOutQueueProcess.cs`
-  - `Shared.Infrastructure\Services\AsyncProcessor.cs`
-  - `Shared.Infrastructure\Services\AsyncProcessorBase.cs`
-  - `Shared.RxCore\Services\SendCommunication\MessageOutQueueService.cs`
+## Scope and status
+This is a cohesive rewrite using direct source tracing plus SQL definitions provided in-session.
 
-> Line numbers are marked **N/A** where snippet line numbers were not included.
+### Source files traced
+- `Shared.DataAccess\Implementation\SharedDAO.cs`
+- `Shared.DataAccess\Implementation\PatientDAO.cs`
+- `Shared.DataAccess\Interfaces\ISharedDAO.cs`
+- `Shared.DataAccess\Interfaces\IPatientDAO.cs`
+- `Shared.DataAccess\DapperDbContext.cs`
+- `Shared.RxCore\Services\SendCommunication\MessageOutQueueService.cs`
+- `Shared.RxCore\Services\SendCommunication\CancelCommunicationService.cs`
 
----
+### SQL definition availability
+Definitions provided and used:
+- `dbo.p_ExtendedService_GetQueues`
+- `dbo.p_ExtendedService_SaveCommunicationSendingResults`
+- `dbo.p_ExtendedService_SaveMsgOutQueueSendingResults`
+- `dbo.p_GreenLight_SetQueuesErrorInfo`
+- `dbo.p_NexApi_CancelMessageOutQueues`
+- `dbo.p_GreenLight_SetQueuesProcessingInfo`
+- `dbo.p_NexApi_GetCommunications`
+- `dbo.p_NexApi_PTSAPI_GetRxCommunicationDetails`
+- `dbo.p_NexApi_PTSAPI_GetCaregiversForPickupReminders`
+- `dbo.f_IsPatientInCare`
 
-## 1) Real startup trigger -> completion trace
-
-## 1.1 Service startup and registration
-1. [CODE-PROVEN] `PropelRxExtService.Services.PropelRxExtService.OnStart(string[] args)` calls:
-   - `ServiceInitHelper.Build().OnInit(InitModules).OnRun(() => _asyncProcessors.ForEach(p => p.Start())).Begin()`.
-   - Citation: **E01** (`PropelRxExtService.cs`, class `PropelRxExtService`, method `OnStart`, line N/A).
-
-2. [CODE-PROVEN] `InitModules()` registers `MessageOutQueueProcess` only when `AppHelper.IsIndy` is true:
-   - `_asyncProcessors.Add(new AsyncProcessor<MessageOutQueueProcess>());`
-   - Citation: **E01** (`PropelRxExtService.cs`, method `InitModules`, line N/A).
-
-3. [CODE-PROVEN] Processor construction path:
-   - `new AsyncProcessor<MessageOutQueueProcess>()` -> `AsyncProcessor<UOWType>.ctor` creates UOW and calls `Configure()` and `Initialize()`.
-   - Citation: **E03** (`AsyncProcessor.cs`, class `AsyncProcessor<UOWType>`, ctor, line N/A).
-
-4. [CODE-PROVEN] Actual periodic trigger is timer-driven in `AsyncProcessorBase.Initialize()`:
-   - `_timer = new Timer(Configuration.ServiceInterval.TotalMilliseconds)`
-   - `_timer.Elapsed += Timer_Elapsed`
-   - `Start()` starts timer; `Timer_Elapsed` invokes `AsyncProcessInstance.Process()`.
-   - Citation: **E04** (`AsyncProcessorBase.cs`, methods `Initialize`, `Start`, `Timer_Elapsed`, line N/A).
-
-## 1.2 Exact process start method and call chain
-5. [CODE-PROVEN] Work cycle entry for this workflow is `MessageOutQueueProcess.Process()`.
-   - Citation: **E02** (`MessageOutQueueProcess.cs`, class `MessageOutQueueProcess`, method `Process`, line N/A).
-
-6. [CODE-PROVEN] `MessageOutQueueProcess.Process()` calls:
-   - `ServiceManager.Instance<MessageOutQueueService>().ProcessCommunication(queueTimeInSecond, requestDelayTimeInSecond, downTimeSendDelayInSecond, groupingQueueTimeInSecond)`.
-   - Citation: **E02**.
-
-## 1.3 Completion path
-7. [CODE-PROVEN] `MessageOutQueueService.ProcessCommunication(...)` iterates patients and performs:
-   - queue retrieval,
-   - per-patient communication building,
-   - queue in-process flag update,
-   - communication record create/update,
-   - external send,
-   - success/failure persistence.
-   - Citation: **E05** (`MessageOutQueueService.cs`, method `ProcessCommunication`, line N/A).
+Not found in repository search and not provided:
+- None in the required method set.
 
 ---
 
-## 2) Trigger type, threading, blocking, concurrency
+## DAO and SQL evidence table
 
-1. [CODE-PROVEN] Trigger type: **timer polling** (`System.Timers.Timer`).
-   - Citation: **E04**.
-
-2. [CODE-PROVEN] Single-flight per processor instance:
-   - `Timer_Elapsed` returns if `_isRunning == true`.
-   - Timer stopped before run, restarted in finally.
-   - Citation: **E04**.
-
-3. [CODE-PROVEN] Blocking call present in workflow:
-   - `Thread.Sleep(TimeSpan.FromSeconds(requestDelayTimeInSecond))` in per-patient loop.
-   - Citation: **E05** (`ProcessCommunication`, line N/A).
-
-4. [RUNTIME-VERIFY] Cross-process concurrency limit is unknown (multiple service instances/machines may run same process).
-
-5. [UNKNOWN] Global lock/coordinator preventing parallel queue workers across hosts is not visible in provided snippets.
-
----
-
-## 3) Configuration values affecting behavior (key names only)
-
-From `MessageOutQueueProcess.MessageOutQueueProcessConfig.ParseConfiguration()`:
-- [CONFIG-PROVEN] `queueTimeInSecond`
-- [CONFIG-PROVEN] `requestDelayTimeInSecond`
-- [CONFIG-PROVEN] `downTimeSendDelayInSecond`
-- [CONFIG-PROVEN] `groupingQueueTime`
-- Citation: **E02** (`MessageOutQueueProcess.cs`, nested class `MessageOutQueueProcessConfig`, method `ParseConfiguration`, line N/A).
-
-Additional behavior dependency:
-- [CONFIG-PROVEN] Polling interval uses `Configuration.ServiceInterval` from `AsyncProcessConfigInstance` (actual key name/value not shown in provided snippets).
-- Citation: **E04**.
+| Method | Project/File/Class/Line | SQL text or procedure | Params | Objects touched | R/W | Connection behavior | Transaction behavior | Call granularity | Error/retry behavior |
+|---|---|---|---|---|---|---|---|---|---|
+| `GetMessageOutQueues` | `Shared.DataAccess/Implementation/SharedDAO.cs` `SharedDAO.GetMessageOutQueues` `4420-4428` | `EXEC dbo.p_ExtendedService_GetQueues @QueueTimeInSec, @DownTimeSendDelayInSec` | `queueTimeInSec`, `downTimeSendDelayInSec` | `MessageOutQueue`, `Prescription`, `Patient`, `PrescriptionWorkflow`, `Communication`, `f_isMTS`, `f_preferenceRetrieve` | Read | `Query<T>` (`DapperDbContext` `101-110`) -> `ExecuteOnNewConnection` (`557-565`) | No app-layer shared transaction | Once per polling cycle (`MessageOutQueueService` `76-79`) | No local catch/retry |
+| `SetQueuesProcessingInfo` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4411-4418` | `EXEC dbo.p_GreenLight_SetQueuesProcessingInfo @TransactionIds` | CSV `TransactionIds` | Updates `MessageOutQueue` via `string_split`; sets `Status='I'`, `ProcessStartTime=GETDATE()`; uses `f_IsNumeric` | Write | New connection per call | Proc-local only; no conditional status predicate | Per patient iteration (`127-130`), and cancellation flow (`CancelCommunicationService` `28-31`) | No local catch/retry |
+| `SetQueuesErrorInfo` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4544-4552` | `EXEC dbo.p_GreenLight_SetQueuesErrorInfo @TransactionIds, @ErrorDesc` | CSV IDs, `errorDesc` | Updates `MessageOutQueue` via `string_split`; sets `Status='F'`; increments attempts; uses `f_IsNumeric` | Write | New connection per call | Proc-local only | Error path per patient (`MessageOutQueueService` `146-154`) and cancel flow (`48-55`) | No local retry |
+| `CreateCommunication` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4440-4468` | `EXEC dbo.p_Communication_Insert ... @NewId OUTPUT` | ~20 input params + output `@NewId` | Validates `MessageOutQueueTransId`, checks `MessageOutQueue` existence, may check `PrescriptionWorkflow` (`PIC`) and skip insert, inserts into `Communication`, logs via `p_LogNexxsysSrvMsg`/`p_LogApplicationMessage` | Write | `Execute` (`235-244`) -> new connection (`557-565`) | Proc explicitly states caller manages transaction; proc itself does not begin/commit/rollback | Per communication (`MessageOutQueueService` `1210-1217`) | Proc raises errors via `RAISERROR` on validation/insert failures; no retry logic |
+| `CancelMessageOutQueues` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4479-4487` | `EXEC dbo.p_NexApi_CancelMessageOutQueues @MessageOutQueueTransIds, @ReasonText` | trans IDs, reason text | Updates `MessageOutQueue`; sets `Status='C'`; uses `f_IsNumeric` | Write | New connection per call | Proc-local only | Per patient when duplicates exist (`1221-1225`) | No local retry |
+| `GetCommunications` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4430-4438` | `EXEC dbo.p_NexApi_GetCommunications @PatientId, @MessageOutQueueTransIds` | `patientId`, trans IDs | Reads `Communication`; filters by `MessageOutQueueTransId`, `PatientId/OnBehalfOfPatientId`; uses `string_split`, `f_IsNumeric` | Read | New connection per call | No app-layer shared transaction | Conditional resend branch (`1237-1244`) | No local retry |
+| `SaveCommunicationSendingResults` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4496-4506` | `EXEC dbo.p_ExtendedService_SaveCommunicationSendingResults ...` | success IDs, failed IDs, correlation, delivered flag | Updates `Communication`; failed => `FL`; success => `TS` or `CO` | Write | New connection per call | Proc-local only | Per send-result batch (`1160-1201`) | No local retry |
+| `SaveMsgOutQueueSendingResults` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4508-4518` | `EXEC dbo.p_ExtendedService_SaveMsgOutQueueSendingResults ...` | success trans IDs, failed trans IDs, program code, delivered flag | Reads `APPLICATIONDEF`; updates `MessageOutQueue`; uses `f_IsNumeric` | Write | New connection per call | Proc-local only | Per send-result batch (`1160-1201`) | No local retry |
+| `IsPatientInCare` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4520-4529` | `SELECT dbo.f_IsPatientInCare(@PatientId)` | `patientId` | Function checks `f_GetLatestConsentForPicRelationships(@PatientId,1)` for active non-expired `CGV` consent and returns bit | Read | New connection per call | No app-layer shared transaction | Per candidate communication requiring caregiver resolution (`737`) | No local retry |
+| `GetCaregiversForPickupReminders` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4531-4542` | `EXEC dbo.p_NexApi_PTSAPI_GetCaregiversForPickupReminders ...` | `picPatientId`, reminder/sensitive flags | Reads `Preference`, `Patient`, `PatientProgramEnrollment`; uses function `f_GetLatestConsentForPicRelationships`; filters active consent and sensitivity rules | Read | New connection per call | No app-layer shared transaction | Per eligible communication (`741-747`) | No local retry |
+| `GetRxCommunicationDetails` | `Shared.DataAccess/Implementation/SharedDAO.cs` `4470-4477` | `EXEC dbo.p_NexApi_PTSAPI_GetRxCommunicationDetails @RxId` | `rxId` | Reads `Preference`, `Prescription`, `Drug`, `PrescriptionIVR` | Read | New connection per call | No app-layer shared transaction | Per latest queue item per Rx (`274-283`) | No local retry |
+| `PatientDAO.GetPatient` | `Shared.DataAccess/Implementation/PatientDAO.cs` `1103-1279`, wrapper `1283-1291` | Inline patient `SELECT` + conditional dependent queries by `PatientDataPoint` | `patientId`, `loadDataPoint`/`eagerLoad` | `Patient`, `PatientNMS`, `AddressRole`, `Address`, `f_DecryptString` + additional conditional objects | Read | Each internal Dapper call opens new connection | No single transaction across full load | Per patient and per caregiver lookup | No method-level retry |
 
 ---
 
-## 4) Full class/method flow for the workflow
+## Required determinations (1–11)
 
-## 4.1 `MessageOutQueueProcess`
-- [CODE-PROVEN] `Configure()`:
-  - `AppHelper.GetModuleConfig(ModuleName)`
-  - builds `MessageOutQueueProcessConfig`
-  - attaches `AppSvcMonitorManager`
-- [CODE-PROVEN] `Process()` delegates to `MessageOutQueueService.ProcessCommunication(...)`.
-- Citation: **E02**.
-
-## 4.2 `MessageOutQueueService.ProcessCommunication(...)`
-Per run:
-1. [CODE-PROVEN] Load queue candidates:
-   - `SharedService.GetMessageOutQueues(queueTimeInSecond, downTimeSendDelayInSecond)`.
-2. [CODE-PROVEN] Build patient id set (`Distinct`).
-3. [CODE-PROVEN] Optional grouping cleanup when SMS enabled:
-   - `SmsPrescriptionsGrouping.ClearGroupingTimerForPatientWithoutQueue(...)`.
-4. [CODE-PROVEN] For each patient:
-   - `PatientService.GetPatientById(patientId)`
-   - optional `SmsPrescriptionsGrouping.Process(...)`
-   - `BuildNotificationCommunications(...)`
-   - `SharedService.SetMessageOutQueuesProcessingInfo(transIds)`
-   - `SaveCommunications(...)`
-   - `SendPatientCommunications(...)`
-   - optional `Thread.Sleep(...)`
-5. [CODE-PROVEN] Per-patient catch writes DB log and queue error info:
-   - `SharedService.SetQueuesErrorInfo(errorDesc, transIds)`.
-- Citation: **E05**.
-
-## 4.3 Communication builders and duplicate suppression
-- [CODE-PROVEN] `BuildCommunications(...)` filters queue by transaction/entity/message type and picks latest queue per RX (`GroupBy(EntityId).Select(First)`), marks older as duplicates.
-- [CODE-PROVEN] Duplicate queue rows are canceled later by `CancelMessageOutQueues(transIds)`.
-- [CODE-PROVEN] Resend logic uses existing comm lookup (`_unsentComms`/`_sentComms`) to avoid duplicate send creation.
-- [CODE-PROVEN] Sent statuses list includes: `TS`, `CO`, `TC`, `CA`.
-- Citation: **E05** (`BuildCommunications`, `BuildPickupCommunication`, `GetExistingCommunications`, `SaveCommunications`, line N/A).
-
-## 4.4 External send branches
-- [CODE-PROVEN] Channel routing in `SendPatientCommunications(...)`:
-  - Healthera -> `SendPatientCommunicationToHealthera`
-  - Amjay -> `SendPatientCommunicationToAmjay`
-  - Diem -> `SendPatientCommunicationToDiem`
-  - PropelRx + TXT -> `SendPatientCommunicationsToSms`
-- Citation: **E05**.
-
-### Healthera
-- [CODE-PROVEN] Endpoint path: `host + "SendCommunication"`.
-- [CODE-PROVEN] Per communication HTTP POST with auth headers and correlation id.
-- [CODE-PROVEN] Persist send outcomes via `SaveCommunicationSendingResults(...)`.
-- Citation: **E05**.
-
-### Amjay
-- [CODE-PROVEN] Endpoint path: `host + "SendCommunication"`.
-- [CODE-PROVEN] Sends grouped `PatientCommunication` payload.
-- Citation: **E05**.
-
-### Diem
-- [CODE-PROVEN] Uses `DiemWebRefillService.RxReadyNotification(...)` with `RxNotificationModel` list.
-- Citation: **E05**.
-
-### SMS
-- [CODE-PROVEN] Endpoint path: `host + "SendCommunications"`.
-- [CODE-PROVEN] Adds `pharmacyName` additional data, normalizes phone with `+1`, groups by `TypeCode`, posts per type group.
-- [CODE-PROVEN] Handles `CustomHttpException`, parses response code `003` for invalid phone.
-- [CODE-PROVEN] Updates patient opt-in error state with `SharedService.SavePatientOptIn(...)`.
-- Citation: **E05**.
+1. `GetMessageOutQueues` select-only vs claim behavior: **SELECT-ONLY**.
+2. Selection and `SetQueuesProcessingInfo` as separate DB ops: **YES**.
+3. Two workers can select same records before in-process mark: **POSSIBLE**.
+4. `SetQueuesProcessingInfo` atomic conditional update: **NO**. Update is set-based for provided IDs, but has no conditional predicate (e.g., no `Status='Q'` guard).
+5. Status mapping: `Q` pending, `I` in-process, `F` failed/retryable (<=3 attempts), `S/D` success completed, `C` canceled.
+6. Abandoned in-process crash recovery: **No recovery logic evidenced in provided SQL set** for `I` rows; failed/down recovery exists.
+7. Max batch size in queue query: **NOT EVIDENCED**.
+8. DB connections opened separately per DAO call: **YES**.
+9. Multiple writes for one patient share transaction: **NO APP-LAYER SHARED TRANSACTION EVIDENCE**; additionally, `p_Communication_Insert` explicitly states transaction management is caller-owned.
+10. External network call while DB transaction open: **NO APP-LAYER EVIDENCE**.
+11. Static DB-call-count formula: see model below.
 
 ---
 
-## 5) Database calls, SQL objects, queue lifecycle
+## Queue status-transition table
 
-## 5.1 Directly observed service-layer DB-facing calls (through `SharedService`/`PatientService`)
-- [CODE-PROVEN] `GetMessageOutQueues(...)`
-- [CODE-PROVEN] `SetMessageOutQueuesProcessingInfo(transIds)`
-- [CODE-PROVEN] `SetQueuesErrorInfo(errorDesc, transIds)`
-- [CODE-PROVEN] `CreateCommunication(comm)`
-- [CODE-PROVEN] `CancelMessageOutQueues(transIds)`
-- [CODE-PROVEN] `GetCommunications(patientId, transIdsStr)`
-- [CODE-PROVEN] `SaveCommunicationSendingResults(...)`
-- [CODE-PROVEN] `SaveMsgOutQueueSendingResults(...)`
-- [CODE-PROVEN] `IsPatientInCare(patientId)`
-- [CODE-PROVEN] `GetCaregiversForPickupReminders(...)`
-- [CODE-PROVEN] `GetRxCommunicationDetails(entityId)`
-- [CODE-PROVEN] `PatientService.GetPatientById(...)`
-- Citation: **E05**.
-
-## 5.2 SQL objects (SP/functions/tables)
-- [UNKNOWN] Exact SQL text, stored procedures, table names, and lock hints are not in provided snippets.
-- [INFERRED] Queue persistence likely uses queue/communication tables backing `MessageOutQueue` and `Communication` models.
-- [RUNTIME-VERIFY] Need DAO/source SQL or profiler trace to enumerate exact SQL objects.
-
-## 5.3 Queue select/claim/complete/retry/fail path
-- [CODE-PROVEN] Select: `GetMessageOutQueues(...)`.
-- [CODE-PROVEN] Claim/in-process: `SetMessageOutQueuesProcessingInfo(transIds)` before send.
-- [CODE-PROVEN] Complete/fail update: `SaveMsgOutQueueSendingResults(...)` after send.
-- [CODE-PROVEN] Duplicate stale queue cleanup: `CancelMessageOutQueues(transIds)`.
-- [CODE-PROVEN] Error tagging on exception: `SetQueuesErrorInfo(...)`.
-- [UNKNOWN] Atomicity/transactional guarantees of claim/update operations.
-
-## 5.4 Could two workers process same record?
-- [CODE-PROVEN] Intra-instance overlap is prevented by `_isRunning` guard and timer stop/start.
-- [UNKNOWN] Inter-instance duplicate processing depends on DB claim atomicity inside `SetMessageOutQueuesProcessingInfo`; not visible.
-- [RUNTIME-VERIFY] Multi-instance contention test required.
+| From | To | Trigger method | Condition |
+|---|---|---|---|
+| `Q/F/C` | `I` | `SetQueuesProcessingInfo` | For passed IDs, proc sets `Status='I'` and `ProcessStartTime=GETDATE()` |
+| `Q/F` | `S` | `SaveMsgOutQueueSendingResults` | Success list and `@IsDelivered=0` |
+| `Q/F` | `D` | `SaveMsgOutQueueSendingResults` | Success list and `@IsDelivered=1` |
+| `Q/F` | `F` | `SaveMsgOutQueueSendingResults` / `SetQueuesErrorInfo` | Failed list or catch path |
+| `*` | `C` | `CancelMessageOutQueues` | Duplicate queue cancellation |
+| `F` | eligible retry | `GetMessageOutQueues` | `SendAttemptNumber <= 3`; includes downtime-delay branches |
 
 ---
 
-## 6) Retry, backoff, idempotency, poison handling, crash behavior
+## Transaction-boundary diagram
 
-1. [CODE-PROVEN] Explicit exponential backoff is **not** implemented in shown code.
-2. [CODE-PROVEN] Retry-like behavior exists through resend queue path (`IsResend` + `_unsentComms` retrieval) and status checks.
-3. [CODE-PROVEN] Duplicate-send protection exists at app level by checking `_sentComms` and selecting latest queue per RX.
-4. [UNKNOWN] Hard retry limits, poison/dead-letter queues, and retention windows are not visible.
-5. [UNKNOWN] Crash consistency of in-process claimed rows depends on DB layer logic not shown.
-
-Citation: **E05**.
-
----
-
-## 7) Polling frequency, empty polling, batch size, chattiness
-
-- [CODE-PROVEN] Poll frequency controlled by timer interval `Configuration.ServiceInterval`.
-- [CONFIG-PROVEN] Candidate selection window controlled by `queueTimeInSecond` and `downTimeSendDelayInSecond`.
-- [CODE-PROVEN] No explicit fixed batch-size cap shown in `ProcessCommunication`; iterates all returned queue rows grouped by patient.
-- [CODE-PROVEN] Chattiness hotspots:
-  1. `GetPatientById` per patient and per caregiver.
-  2. `GetRxCommunicationDetails` per latest queue message.
-  3. Per-message HTTP POSTs in Healthera path.
-  4. Per-type grouped HTTP POSTs in SMS path.
-  5. Per-communication `CreateCommunication` when `Id <= 0`.
-- [RUNTIME-VERIFY] Empty poll rates and DB call volumes require instrumentation.
-
-Citation: **E04,E05**.
+```mermaid
+flowchart LR
+  A[Polling cycle start] --> B[GetMessageOutQueues]
+  B --> C[In-memory build/grouping]
+  C --> D[SetQueuesProcessingInfo]
+  D --> E[CreateCommunication per item]
+  E --> F[CancelMessageOutQueues for duplicates]
+  F --> G[External send]
+  G --> H[SaveCommunicationSendingResults]
+  H --> I[SaveMsgOutQueueSendingResults]
+  C --> J[Exception]
+  J --> K[SetQueuesErrorInfo]
+```
 
 ---
 
-## 8) Connection creation/disposal and transaction boundaries
+## Multi-worker race timeline
 
-- [UNKNOWN] `MessageOutQueueService` does not directly show `SqlConnection`; connections are hidden behind `SharedService/PatientService`.
-- [RUNTIME-VERIFY] Need DAO-level methods called by above service methods to prove connection lifetime and transaction scope.
-
----
-
-## 9) Logging, monitoring, queue-lag, alerting
-
-- [CODE-PROVEN] Logging exists:
-  - `NxLogger.DbLogger.LogInError_Log(...)` in process and send branches.
-- [CODE-PROVEN] Processor telemetry exists via `Configuration.AppSvcLogger.UpdateLastRunTime()` and exception tracking in `AsyncProcessorBase`.
-- [UNKNOWN] Queue lag metric and alert thresholds are not visible in provided snippets.
-
-Citation: **E02,E04,E05**.
-
----
-
-## 10) Mermaid diagrams
-
-## 10.1 End-to-end workflow sequence
 ```mermaid
 sequenceDiagram
-    participant SCM as Service Control Manager
-    participant SVC as PropelRxExtService.Services.PropelRxExtService
-    participant AP as AsyncProcessor<MessageOutQueueProcess>
-    participant ABase as AsyncProcessorBase (Timer)
-    participant MOP as MessageOutQueueProcess
-    participant MOQS as MessageOutQueueService
-    participant SS as SharedService/PatientService
-    participant EXT as External channels
+  participant W1 as Worker 1
+  participant W2 as Worker 2
+  participant DB as DB
 
-    SCM->>SVC: OnStart()
-    SVC->>SVC: InitModules()
-    alt AppHelper.IsIndy == true
-        SVC->>AP: new AsyncProcessor<MessageOutQueueProcess>()
-        AP->>MOP: Configure()
-        AP->>ABase: Initialize(timer)
-        SVC->>ABase: Start()
-    end
-    loop every ServiceInterval
-        ABase->>MOP: Process()
-        MOP->>MOQS: ProcessCommunication(...)
-        MOQS->>SS: GetMessageOutQueues(...)
-        MOQS->>SS: GetPatientById / GetRxCommunicationDetails / caregivers
-        MOQS->>SS: SetMessageOutQueuesProcessingInfo(transIds)
-        MOQS->>SS: CreateCommunication(...)
-        MOQS->>EXT: Send (Healthera/Amjay/Diem/SMS)
-        MOQS->>SS: SaveCommunicationSendingResults(...)
-        MOQS->>SS: SaveMsgOutQueueSendingResults(...)
-    end
-```
-
-## 10.2 Worker and queue architecture
-```mermaid
-flowchart LR
-    Host[PropelRxExtService] --> Proc[AsyncProcessor<MessageOutQueueProcess>]
-    Proc --> Timer[AsyncProcessorBase.Timer]
-    Timer --> UOW[MessageOutQueueProcess.Process]
-    UOW --> Core[MessageOutQueueService.ProcessCommunication]
-    Core --> DBAPI[SharedService/PatientService APIs]
-    Core --> CH[Healthera | Amjay | Diem | SMS]
-
-    DBAPI -. [RUNTIME-VERIFY] SQL/SP objects .-> DB[(Queue + Communication DB)]
-```
-
-## 10.3 Database-call and chattiness map
-```mermaid
-flowchart TD
-    P[ProcessCommunication]
-    P --> A[GetMessageOutQueues]
-    P --> B[GetPatientById per patient]
-    P --> C[GetRxCommunicationDetails per RX]
-    P --> D[SetMessageOutQueuesProcessingInfo]
-    P --> E[CreateCommunication per comm]
-    P --> F[SaveCommunicationSendingResults]
-    P --> G[SaveMsgOutQueueSendingResults]
-    P --> H[SetQueuesErrorInfo on catch]
-    P --> I[CancelMessageOutQueues for dupes]
-```
-
-## 10.4 Read vs write path
-```mermaid
-flowchart LR
-    R[Read path] --> R1[GetMessageOutQueues]
-    R --> R2[GetPatientById]
-    R --> R3[GetRxCommunicationDetails]
-    R --> R4[GetCommunications (resend)]
-
-    W[Write path] --> W1[SetMessageOutQueuesProcessingInfo]
-    W --> W2[CreateCommunication]
-    W --> W3[SaveCommunicationSendingResults]
-    W --> W4[SaveMsgOutQueueSendingResults]
-    W --> W5[CancelMessageOutQueues]
-    W --> W6[SetQueuesErrorInfo]
-```
-
-## 10.5 Failure/retry/recovery flow
-```mermaid
-flowchart TD
-    A[Load queue rows] --> B[Build communications]
-    B --> C[Mark queue in-process]
-    C --> D[Send by channel]
-    D -->|Success| E[Persist success results]
-    D -->|Channel/API exception| F[Mark failed communications]
-    F --> G[Persist failed results]
-    B -->|Duplicate/older rows| H[CancelMessageOutQueues]
-    A -->|Per-patient exception| I[SetQueuesErrorInfo]
-
-    D --> J[IsResend path uses existing unsent comms]
+  W1->>DB: GetMessageOutQueues()
+  W2->>DB: GetMessageOutQueues()
+  W1->>W1: Build communications
+  W2->>W2: Build communications
+  W1->>DB: SetQueuesProcessingInfo(transIds)
+  W2->>DB: SetQueuesProcessingInfo(transIds)
 ```
 
 ---
 
-## 11) Top findings
+## Crash/restart analysis
 
-1. [CODE-PROVEN] `MessageOutQueueProcess` is a timer-polled background worker started only for Indy stores (`AppHelper.IsIndy`).
-2. [CODE-PROVEN] Queue flow includes explicit in-process marking and post-send result persistence, but transaction/atomicity is hidden in service/DAO methods.
-3. [CODE-PROVEN] App-level duplicate suppression exists (latest-per-RX + sent-status checks + duplicate queue cancellation).
-4. [CODE-PROVEN] Blocking `Thread.Sleep(...)` inside patient loop can reduce throughput under load.
-5. [HIGH-RISK][CODE-PROVEN] `ProcessCommunication(...)` always returns `true`; `MessageOutQueueProcess.Process()` error branch on `!isSuccess` may never trigger.
-6. [HIGH-RISK][CODE-PROVEN] `SendPatientCommunicationToDiem(...)` does not add successful communications to success list before saving results.
-7. [MEDIUM-RISK][CODE-PROVEN] `First(...)` then null-check pattern for interface lookup can throw before null-check (`Healthera/Amjay/SMS`).
-
-Citations: **E01,E02,E04,E05**.
+- Retry filter: `Status='F'` with `SendAttemptNumber <= 3`.
+- Downtime resend branch exists via `@DownTimeDelayDate`.
+- No provided SQL path reselects `Status='I'` rows; stale in-process items require separate recovery mechanism not yet provided.
 
 ---
 
-## 12) Severity / effort / risk table
+## Database-call-count model
 
-| Topic | Severity | Effort | Risk if unchanged | Evidence |
-|---|---|---:|---|---|
-| Inter-instance duplicate claim atomicity unknown | High | Medium | Duplicate sends / race | E05 + [RUNTIME-VERIFY] DAO |
-| `ProcessCommunication` always true | Medium | Low | Silent degradation of process-level health signal | E02,E05 |
-| Diem success persistence gap | High | Medium | Queue rows may not transition correctly on success | E05 |
-| Blocking `Thread.Sleep` in loop | Medium | Low | Throughput throttling at high volume | E05 |
-| Chattiness (per-patient/per-caregiver fetches) | Medium | Medium | Excess DB round trips | E05 |
-| Retry/backoff/poison handling unclear | High | Medium | Repeated failures / backlog growth | E05 + [RUNTIME-VERIFY] |
+Variables: `P`, `R`, `C`, `M`, `G`.
 
----
+`Calls_min = 1`
 
-## 13) Exact runtime measurements still required
+`Calls_typical = 1 + P + P + R + R + R + C + M + 2G`
 
-1. [RUNTIME-VERIFY] Actual `ServiceInterval` and observed poll cadence.
-2. [RUNTIME-VERIFY] Rows returned per poll, empty-poll frequency, and backlog age.
-3. [RUNTIME-VERIFY] Duplicate claim incidence with 2+ worker instances.
-4. [RUNTIME-VERIFY] External channel latency/error distribution by channel.
-5. [RUNTIME-VERIFY] DB calls per message and end-to-end processing time percentiles.
-6. [RUNTIME-VERIFY] Queue state transition completeness (especially Diem path).
+`Calls_worst = 1 + P + P + R + R + R + C + P + M + P + 2G + P`
 
 ---
 
-## 14) Quick wins (no architecture rewrite)
+## Defect revalidation: D-001 / D-002 / D-003
 
-1. [RECOMMENDATION][RUNTIME-VERIFY] Add explicit run metrics (rows fetched, rows sent, rows failed, queue lag) per cycle.
-   - Validation: metrics visible and monotonic by cycle.
-   - Rollback: disable metric emitter switch.
-
-2. [RECOMMENDATION][RUNTIME-VERIFY] Replace blocking `Thread.Sleep` with non-blocking delay model in worker loop policy layer.
-   - Validation: same functional output; better overlap utilization.
-   - Rollback: feature-flag back to current pacing.
-
-3. [RECOMMENDATION][RUNTIME-VERIFY] Add guard assertions for send-result persistence counts per channel.
-   - Validation: success + fail count matches attempted count.
-   - Rollback: disable assertion logging.
-
-4. [RECOMMENDATION][RUNTIME-VERIFY] Add deterministic idempotency key checks at DB layer for queue trans id + recipient + type.
-   - Validation: no duplicate external sends under retry/restart tests.
-   - Rollback: disable idempotency check path.
+| Defect | Revalidation result | Exact citations |
+|---|---|---|
+| `D-001` | **Confirmed** (selection/claim split) | `MessageOutQueueService.cs` `76-79`, `127-130`; `SharedDAO.cs` `4420-4428`, `4411-4418`; `p_ExtendedService_GetQueues` is select-only |
+| `D-002` | **Confirmed** (duplicate-selection window possible) | `MessageOutQueueService.cs` `76-130`, `225-320`; `p_GreenLight_SetQueuesProcessingInfo` has no conditional claim predicate |
+| `D-003` | **Confirmed** (no app-layer shared transaction across multi-write flow) | `DapperDbContext.cs` `101-110`, `235-244`, `557-565`; `MessageOutQueueService.cs` `1210-1225`, `1184-1200` |
 
 ---
 
-## 15) Medium-term improvements (preserve existing service + DB)
+## Revised findings and recommendations
 
-1. [RECOMMENDATION][RUNTIME-VERIFY] Make queue claim/update atomic in one DB transaction with clear state transitions.
-2. [RECOMMENDATION][RUNTIME-VERIFY] Introduce explicit retry policy (bounded attempts + backoff + poison terminal state).
-3. [RECOMMENDATION][RUNTIME-VERIFY] Reduce DB chattiness via batched lookups for patient/rx/caregiver data.
-4. [RECOMMENDATION][RUNTIME-VERIFY] Add per-channel circuit-breaker behavior for prolonged endpoint downtime.
+Findings:
+1. Queue fetch is select-only; claim is separate.
+2. Pre-claim race window exists.
+3. Queue status evidence confirms `Q/I/F/S/D/C` including explicit in-process `I`.
+4. Retry and downtime-resend logic is SQL-proven.
+5. DAO behavior is connection-per-call without cross-call app transaction.
 
-Validation and rollback for each:
-- Validate in staging with synthetic queue load + controlled endpoint failures.
-- Roll back via feature flags/process config and restart service.
+Recommendations:
+1. Add conditional/atomic claim semantics to queue claim path (e.g., guard current status and return claimed rows in one operation).
+2. Add stale `I` recovery strategy (timeout-based requeue to `F` or `Q`) with explicit criteria.
+3. Add per-cycle telemetry (selected/claimed/duplicate/retry counts).
+4. Validate current retry/downtime thresholds operationally.
 
----
-
-## 16) Areas that should not be changed now
-
-1. [CODE-PROVEN] Keep current service host topology (`PropelRxExtService` + `AsyncProcessor` model) for incremental hardening.
-2. [RUNTIME-VERIFY] Do not alter queue schema/state machine semantics before DAO SQL is fully traced.
-3. [RUNTIME-VERIFY] Do not tune poll interval/concurrency blindly without runtime baseline metrics.
-
----
-
-## 17) Incremental target design (compatible with existing system)
-
-- [INFERRED] Retain `MessageOutQueueProcess` as worker shell.
-- [INFERRED] Add a small policy layer in `MessageOutQueueService` for:
-  - atomic claim abstraction,
-  - retry/backoff policy,
-  - idempotency enforcement,
-  - standardized metrics emission.
-- [INFERRED] Keep channel-specific send methods but unify result accounting contract.
-
----
-
-## 18) Final conclusion (scalability priority)
-
-- [CODE-PROVEN] `MessageOutQueueProcess` is a real timer-driven queue workflow with external IO and many DB touchpoints.
-- [INFERRED] This makes it a **meaningful scalability risk candidate**.
-- [RUNTIME-VERIFY] Final priority versus other workflows depends on measured backlog/latency/duplicate rates, but based on architecture characteristics and current code shape, it should remain a top Phase 2 scalability target.
-
-### Separate recommendation for SQL login failure track
-- [CODE-PROVEN] Message workflow depends on SharedService/DAO calls; SQL auth issues in shared data access will impact queue processing.
-- [RUNTIME-VERIFY] Continue parallel investigation of shared SQL login reliability and credential-refresh path, because queue scalability improvements do not help if DB auth is unstable.
-
----
-
-## 19) Evidence index
-
-- **E01** Project: `PropelRxExtService`; File: `Services\PropelRxExtService.cs`; Class: `PropelRxExtService`; Methods: `OnStart`, `InitModules`, `OnPause`, `OnContinue`, `OnStop`; Line: N/A.
-- **E02** Project: `PropelRxExtService`; File: `ServiceImplementations\MessageOutQueueProcess.cs`; Class: `MessageOutQueueProcess`; Methods: `Configure`, `Process`; Nested class `MessageOutQueueProcessConfig.ParseConfiguration`; Line: N/A.
-- **E03** Project: `Shared.Infrastructure`; File: `Services\AsyncProcessor.cs`; Class: `AsyncProcessor<UOWType>`; Method: constructor; Line: N/A.
-- **E04** Project: `Shared.Infrastructure`; File: `Services\AsyncProcessorBase.cs`; Class: `AsyncProcessorBase`; Methods: `Initialize`, `Timer_Elapsed`, `Start`, `Stop`, `Dispose`, `HandleException`; Line: N/A.
-- **E05** Project: `Shared.RxCore`; File: `Services\SendCommunication\MessageOutQueueService.cs`; Class: `MessageOutQueueService`; Methods:
-  - `ProcessCommunication`
-  - `BuildNotificationCommunications`
-  - `BuildCommunications`
-  - `BuildPatientCommunications`
-  - `BuildCaregiversCommunications`
-  - `BuildPickupCommunication`
-  - `CreateNewPickupCommunication`
-  - `SendPatientCommunications`
-  - `SendPatientCommunicationToHealthera`
-  - `SendPatientCommunicationToAmjay`
-  - `SendPatientCommunicationToDiem`
-  - `SendPatientCommunicationsToSms`
-  - `SaveCommunicationSendingResults`
-  - `SaveCommunications`
-  - `GetExistingCommunications`
-  - `BuildOptInCommunications`
-  - `BuildPickupOptInCommForPatient`
-  - `CreateNewOptInCommunication`
-  - `GetPhoneInformation`
-  - `GetEmailInformation`
-  - `GetInvalidPhoneErrorMsg`; Line: N/A.
-- **E06**: `Shared.RxCore\Services\SharedService.cs`, class `SharedService`, region `SendCommunication related methods`, methods listed in section 20.2, line N/A.
-- **E07**: `Shared.RxCore\Services\PatientService.cs`, class `PatientService`, method `GetPatientById(int,bool,...)` returning `PatientDAO.GetPatient(...)`, line N/A.
-
----
-
-## 20) Phase 2B Data-Access Trace Status (Playbook-governed)
-
-### 20.1 Governing specification
-- [CODE-PROVEN] `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` was provided and applied for this phase.
-
-### 20.2 Concrete service-to-DAO mapping (available evidence)
-
-For `MessageOutQueueService` DB-facing calls, these service-to-DAO links are directly implemented in `Shared.RxCore\Services\SharedService.cs`:
-
-| Service method | DAO method called | Evidence status | Citation |
-|---|---|---|---|
-| `GetMessageOutQueues(int,int)` | `SharedDAO.GetMessageOutQueues(int,int)` | [CODE-PROVEN] | `SharedService` class, region `SendCommunication related methods`, line N/A |
-| `SetMessageOutQueuesProcessingInfo(IEnumerable<int>)` | `SharedDAO.SetQueuesProcessingInfo(IEnumerable<int>)` | [CODE-PROVEN] | same |
-| `SetQueuesErrorInfo(string,IEnumerable<int>)` | `SharedDAO.SetQueuesErrorInfo(...)` | [CODE-PROVEN] | same |
-| `CreateCommunication(Communication)` | `SharedDAO.CreateCommunication(...)` | [CODE-PROVEN] | same |
-| `CancelMessageOutQueues(string)` | `SharedDAO.CancelMessageOutQueues(...)` | [CODE-PROVEN] | same |
-| `GetCommunications(int,string)` | `SharedDAO.GetCommunications(...)` | [CODE-PROVEN] | same |
-| `SaveCommunicationSendingResults(...)` | `SharedDAO.SaveCommunicationSendingResults(...)` | [CODE-PROVEN] | same |
-| `SaveMsgOutQueueSendingResults(...)` | `SharedDAO.SaveMsgOutQueueSendingResults(...)` | [CODE-PROVEN] | same |
-| `IsPatientInCare(int)` | `SharedDAO.IsPatientInCare(int)` | [CODE-PROVEN] | same |
-| `GetCaregiversForPickupReminders(int,bool,bool)` | `SharedDAO.GetCaregiversForPickupReminders(...)` | [CODE-PROVEN] | same |
-| `GetRxCommunicationDetails(int)` | `SharedDAO.GetRxCommunicationDetails(int)` | [CODE-PROVEN] | same |
-
-For patient retrieval used by this workflow:
-
-| Service method | DAO method called | Evidence status | Citation |
-|---|---|---|---|
-| `PatientService.GetPatientById(int,bool,...)` | `PatientDAO.GetPatient(int,bool)` | [CODE-PROVEN] | `Shared.RxCore\Services\PatientService.cs`, class `PatientService`, method `GetPatientById`, line N/A |
-
-### 20.3 Mandatory stop condition (Playbook rule)
-- [UNKNOWN] DAO implementations, Dapper helper invocations, SQL/SP names, transaction boundaries, lock hints, and touched tables/views/functions are **not yet provided** for:
-  - `Shared.DataAccess\Implementation\SharedDAO.cs`
-  - `Shared.DataAccess\Implementation\PatientDAO.cs`
-  - `Shared.DataAccess\DapperDbContext.cs` (full path sections used by these DAO methods)
-- [RUNTIME-VERIFY] Because those implementations are missing, atomic claim behavior, multi-worker duplication risk, retry-limit/poison handling at DB level, and SQL index support cannot be finalized.
-- [CODE-PROVEN] Per playbook and user instruction, this report does not fill missing DAO/SQL details with inference.
-
----
-
-## 21) Verified defects (revalidated)
-
-### D-001: `ProcessCommunication(...)` always returns `true`
-- [CODE-PROVEN] In `Shared.RxCore\Services\SendCommunication\MessageOutQueueService.cs`, method `ProcessCommunication(...)`, the method ends with `return true;` and has no path returning `false`.
-- [CODE-PROVEN] In `PropelRxExtService\ServiceImplementations\MessageOutQueueProcess.cs`, method `Process()`, caller checks `if (!isSuccess) ...`.
-- [CODE-PROVEN] Therefore `!isSuccess` branch is unreachable under current implementation.
-- Classification: **Confirmed defect** (health/failure signal path is ineffective).
-- Resulting queue/database state: [UNKNOWN] requires DAO-side update/error persistence semantics for full impact quantification.
-- Existing tests coverage: [UNKNOWN] no provided test evidence for this path.
-
-### D-002: Diem path does not add successful communications
-- [CODE-PROVEN] In `MessageOutQueueService.SendPatientCommunicationToDiem(...)`:
-  - `successCommunications` is initialized empty.
-  - On success path, code does not add sent items to `successCommunications`.
-  - On failure, it assigns `failedCommunications = patientCommunication.Communications`.
-  - Calls `SaveCommunicationSendingResults(successCommunications, failedCommunications, ...)`.
-- Classification: **Confirmed defect**.
-- Resulting queue/database state: [INFERRED] successful Diem sends may not be persisted as success in communication/queue result tables; exact final status impact depends on DAO logic.
-- Existing tests coverage: [UNKNOWN].
-
-### D-003: `First(...)` followed by null check in integration lookup
-- [CODE-PROVEN] In methods:
-  - `SendPatientCommunicationToHealthera(...)`
-  - `SendPatientCommunicationToAmjay(...)`
-  - `SendPatientCommunicationsToSms(...)`
-  each uses `AppInfo.Instance.Interfaces.First(i => condition)` then checks `if (programOutboundInterface == null)`.
-- [CODE-PROVEN] `First(...)` throws if no element; null-check cannot prevent this exception path.
-- Classification: **Confirmed defect**.
-- Resulting queue/database state: [INFERRED] per-patient exception path can route to failure handling (`SetQueuesErrorInfo`) at higher level; exact persistence depends on DAO implementation.
-- Existing tests coverage: [UNKNOWN].
-
----
-
-## 22) Rejected or corrected earlier assumptions
-
-1. [CODE-PROVEN] Queue workflow startup/trigger is timer-driven through `AsyncProcessorBase` (not generic thread loop assumption).
-2. [CODE-PROVEN] `MessageOutQueueProcess` is conditionally enabled (`AppHelper.IsIndy`), not universal for all stores.
-3. [INFERRED] `Thread.Sleep` pacing exists by design parameter (`requestDelayTimeInSecond`), but throughput/safety intent (rate-limit vs sequencing) remains unverified until config and integration SLOs are reviewed.
-4. [CODE-PROVEN] No recommendation to replace `Thread.Sleep` is made as an automatic fix in this phase.
-
----
-
-## 23) Phase 2B pending inputs required to complete mandatory sections
-
-To complete requested sections (DAO+SQL evidence table, queue state-transition table with SQL state machine proof, transaction-boundary diagram with open/close points, static DB-call-count formula to SQL object level, race/crash analysis finalization), provide:
-
-1. `Shared.DataAccess\Implementation\SharedDAO.cs`
-2. `Shared.DataAccess\Implementation\PatientDAO.cs`
-3. `Shared.DataAccess\Interfaces\ISharedDAO.cs` and `IPatientDAO.cs` (if needed for mapping)
-4. `Shared.DataAccess\DapperDbContext.cs` (full)
-5. SQL object definitions referenced by those DAO methods (SP/function/view scripts)
-6. If available, index/schema definitions for queue/status predicates
-
-Without these, unresolved items stay `[UNKNOWN]`/`[RUNTIME-VERIFY]` by design.
-
----
-
-## 24) Additional evidence index entries
-
-- **E06**: `Shared.RxCore\Services\SharedService.cs`, class `SharedService`, region `SendCommunication related methods`, methods listed in section 20.2, line N/A.
-- **E07**: `Shared.RxCore\Services\PatientService.cs`, class `PatientService`, method `GetPatientById(int,bool,...)` returning `PatientDAO.GetPatient(...)`, line N/A.
+_End of report._
