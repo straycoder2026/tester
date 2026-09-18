@@ -1,0 +1,156 @@
+Complete and correct `Phase4_ProcessNewRx_CreateRxs_Assessment.md`.
+
+Do not start another workflow and do not modify production code.
+
+## 1. Correct the call-count variables
+
+Use these exact definitions:
+
+- `B` = items submitted in the batch;
+- `R` = prescriptions created;
+- `PL` = insurance/drug plans processed;
+- `CL` = claim or adjudication attempts;
+- `A` = attachments processed;
+- `L` = labels or print requests;
+- `V` = validation operations;
+- `PIT` = PrescribeIT items;
+- `ACT` = `_newRxActions` closures;
+- `LK` = lock operations;
+- `OCR` = OCR records processed.
+
+Do not reuse `PL`, `CL`, or `L` for other concepts.
+
+Create separate formulas for:
+
+- database round trips;
+- stored-procedure executions;
+- external network calls;
+- attachment/OCR operations;
+- label/print requests;
+- UI-thread blocking waits.
+
+Explain every term and identify conditional terms.
+
+## 2. Fully analyze partial failure
+
+Trace the exact behavior when item 1 succeeds and item 2 fails:
+
+- Which writes from item 1 are already committed?
+- What does clearing the accumulated result list affect?
+- Is the successful prescription still in the database?
+- Does the modal stay open or close?
+- What error is shown to the user?
+- What happens to staging records and locks?
+- Are attachments, OCR data, notes, and sticky notes saved?
+- Can the user press OK again?
+- How does the second attempt detect the already-created prescription?
+- Can duplicate prescriptions, refills, claims, or attachments be created?
+
+Create a partial-failure state table and retry sequence diagram.
+
+Classify partial success as intentional behavior, confirmed defect, or consistency risk based on code evidence.
+
+## 3. Map transaction boundaries accurately
+
+For regular, photo, PIT, and passthrough items, list every operation and identify whether it occurs:
+
+- inside `Util.RunInTransaction`;
+- in a stored-procedure-local transaction;
+- after the prescription transaction commits;
+- outside any coordinated transaction;
+- after the batch loop completes.
+
+Do not describe the whole item as transactional merely because `InsertPrescription` uses a transaction.
+
+Create a transaction and consistency diagram covering:
+
+- prescription;
+- extended/workflow records;
+- claims;
+- audit/history;
+- staging;
+- attachments;
+- PIT notes;
+- sticky notes;
+- OCR;
+- locks;
+- print requests.
+
+## 4. Trace claims and adjudication
+
+Determine whether `AddNewRx`, `AddRefill`, `AddReAuthRx`, `InsertPrescription`, or their directly invoked methods:
+
+- only save claim records;
+- generate claims;
+- submit claims to an external adjudicator;
+- wait for a response;
+- retry;
+- reverse an earlier claim.
+
+Trace concrete methods and clients. Cite exact line numbers.
+
+Do not label external claim/adjudication involvement `[CODE-PROVEN]` merely because claim methods exist elsewhere in the project.
+
+If external submission is not part of this workflow, say so clearly.
+
+## 5. Prove printing and queue reachability
+
+Determine whether this exact `CreateRxs()` workflow invokes:
+
+- `p_Labyrinth_InsertRxPrintRequest`;
+- `p_InsertRxPrintRequest`;
+- `p_InsertOpioidPrintRequest`;
+- label queues;
+- workbench queues;
+- other background queues.
+
+Method existence is not proof of workflow reachability. Show the exact call chain or mark it outside the selected workflow.
+
+## 6. Expand the write paths
+
+For `AddNewRx`, `AddRefill`, and `AddReAuthRx`, create a table of all directly reachable:
+
+- service calls;
+- DAO calls;
+- SQL/stored-procedure calls;
+- audit/history writes;
+- claim writes;
+- staging updates;
+- lock operations;
+- post-commit events.
+
+Identify calls inside loops and calls repeated for every action closure.
+
+## 7. UI execution and duplicate submission
+
+Trace:
+
+- `RunTaskASync(...).WaitWithPumping()`;
+- whether the OK command/button is disabled while processing;
+- message pumping and re-entrancy risk;
+- whether a second submission can execute concurrently;
+- cancellation behavior;
+- what happens if the view closes during processing.
+
+Keep conclusions `[RUNTIME-VERIFY]` where UI framework behavior is not statically provable.
+
+## 8. Complete the report
+
+Add the missing:
+
+- database-chattiness diagram;
+- transaction/consistency diagram;
+- external adjudication diagram;
+- partial-failure/retry diagram;
+- prescription/claim/staging/attachment/OCR/print consistency table;
+- confirmed defects table;
+- performance and scalability risks table;
+- severity, effort, and implementation-risk table;
+- quick wins;
+- medium-term improvements;
+- areas not to change;
+- runtime-verification plan.
+
+Use “confirmed defect” only when behavior is demonstrably incorrect. Treat intentional batch partial-success behavior as a risk unless requirements prove it is incorrect.
+
+Rewrite the report cohesively rather than appending contradictory sections.
