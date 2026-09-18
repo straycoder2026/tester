@@ -470,3 +470,108 @@ Validation and rollback for each:
   - `GetPhoneInformation`
   - `GetEmailInformation`
   - `GetInvalidPhoneErrorMsg`; Line: N/A.
+- **E06**: `Shared.RxCore\Services\SharedService.cs`, class `SharedService`, region `SendCommunication related methods`, methods listed in section 20.2, line N/A.
+- **E07**: `Shared.RxCore\Services\PatientService.cs`, class `PatientService`, method `GetPatientById(int,bool,...)` returning `PatientDAO.GetPatient(...)`, line N/A.
+
+---
+
+## 20) Phase 2B Data-Access Trace Status (Playbook-governed)
+
+### 20.1 Governing specification
+- [CODE-PROVEN] `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` was provided and applied for this phase.
+
+### 20.2 Concrete service-to-DAO mapping (available evidence)
+
+For `MessageOutQueueService` DB-facing calls, these service-to-DAO links are directly implemented in `Shared.RxCore\Services\SharedService.cs`:
+
+| Service method | DAO method called | Evidence status | Citation |
+|---|---|---|---|
+| `GetMessageOutQueues(int,int)` | `SharedDAO.GetMessageOutQueues(int,int)` | [CODE-PROVEN] | `SharedService` class, region `SendCommunication related methods`, line N/A |
+| `SetMessageOutQueuesProcessingInfo(IEnumerable<int>)` | `SharedDAO.SetQueuesProcessingInfo(IEnumerable<int>)` | [CODE-PROVEN] | same |
+| `SetQueuesErrorInfo(string,IEnumerable<int>)` | `SharedDAO.SetQueuesErrorInfo(...)` | [CODE-PROVEN] | same |
+| `CreateCommunication(Communication)` | `SharedDAO.CreateCommunication(...)` | [CODE-PROVEN] | same |
+| `CancelMessageOutQueues(string)` | `SharedDAO.CancelMessageOutQueues(...)` | [CODE-PROVEN] | same |
+| `GetCommunications(int,string)` | `SharedDAO.GetCommunications(...)` | [CODE-PROVEN] | same |
+| `SaveCommunicationSendingResults(...)` | `SharedDAO.SaveCommunicationSendingResults(...)` | [CODE-PROVEN] | same |
+| `SaveMsgOutQueueSendingResults(...)` | `SharedDAO.SaveMsgOutQueueSendingResults(...)` | [CODE-PROVEN] | same |
+| `IsPatientInCare(int)` | `SharedDAO.IsPatientInCare(int)` | [CODE-PROVEN] | same |
+| `GetCaregiversForPickupReminders(int,bool,bool)` | `SharedDAO.GetCaregiversForPickupReminders(...)` | [CODE-PROVEN] | same |
+| `GetRxCommunicationDetails(int)` | `SharedDAO.GetRxCommunicationDetails(int)` | [CODE-PROVEN] | same |
+
+For patient retrieval used by this workflow:
+
+| Service method | DAO method called | Evidence status | Citation |
+|---|---|---|---|
+| `PatientService.GetPatientById(int,bool,...)` | `PatientDAO.GetPatient(int,bool)` | [CODE-PROVEN] | `Shared.RxCore\Services\PatientService.cs`, class `PatientService`, method `GetPatientById`, line N/A |
+
+### 20.3 Mandatory stop condition (Playbook rule)
+- [UNKNOWN] DAO implementations, Dapper helper invocations, SQL/SP names, transaction boundaries, lock hints, and touched tables/views/functions are **not yet provided** for:
+  - `Shared.DataAccess\Implementation\SharedDAO.cs`
+  - `Shared.DataAccess\Implementation\PatientDAO.cs`
+  - `Shared.DataAccess\DapperDbContext.cs` (full path sections used by these DAO methods)
+- [RUNTIME-VERIFY] Because those implementations are missing, atomic claim behavior, multi-worker duplication risk, retry-limit/poison handling at DB level, and SQL index support cannot be finalized.
+- [CODE-PROVEN] Per playbook and user instruction, this report does not fill missing DAO/SQL details with inference.
+
+---
+
+## 21) Verified defects (revalidated)
+
+### D-001: `ProcessCommunication(...)` always returns `true`
+- [CODE-PROVEN] In `Shared.RxCore\Services\SendCommunication\MessageOutQueueService.cs`, method `ProcessCommunication(...)`, the method ends with `return true;` and has no path returning `false`.
+- [CODE-PROVEN] In `PropelRxExtService\ServiceImplementations\MessageOutQueueProcess.cs`, method `Process()`, caller checks `if (!isSuccess) ...`.
+- [CODE-PROVEN] Therefore `!isSuccess` branch is unreachable under current implementation.
+- Classification: **Confirmed defect** (health/failure signal path is ineffective).
+- Resulting queue/database state: [UNKNOWN] requires DAO-side update/error persistence semantics for full impact quantification.
+- Existing tests coverage: [UNKNOWN] no provided test evidence for this path.
+
+### D-002: Diem path does not add successful communications
+- [CODE-PROVEN] In `MessageOutQueueService.SendPatientCommunicationToDiem(...)`:
+  - `successCommunications` is initialized empty.
+  - On success path, code does not add sent items to `successCommunications`.
+  - On failure, it assigns `failedCommunications = patientCommunication.Communications`.
+  - Calls `SaveCommunicationSendingResults(successCommunications, failedCommunications, ...)`.
+- Classification: **Confirmed defect**.
+- Resulting queue/database state: [INFERRED] successful Diem sends may not be persisted as success in communication/queue result tables; exact final status impact depends on DAO logic.
+- Existing tests coverage: [UNKNOWN].
+
+### D-003: `First(...)` followed by null check in integration lookup
+- [CODE-PROVEN] In methods:
+  - `SendPatientCommunicationToHealthera(...)`
+  - `SendPatientCommunicationToAmjay(...)`
+  - `SendPatientCommunicationsToSms(...)`
+  each uses `AppInfo.Instance.Interfaces.First(i => condition)` then checks `if (programOutboundInterface == null)`.
+- [CODE-PROVEN] `First(...)` throws if no element; null-check cannot prevent this exception path.
+- Classification: **Confirmed defect**.
+- Resulting queue/database state: [INFERRED] per-patient exception path can route to failure handling (`SetQueuesErrorInfo`) at higher level; exact persistence depends on DAO implementation.
+- Existing tests coverage: [UNKNOWN].
+
+---
+
+## 22) Rejected or corrected earlier assumptions
+
+1. [CODE-PROVEN] Queue workflow startup/trigger is timer-driven through `AsyncProcessorBase` (not generic thread loop assumption).
+2. [CODE-PROVEN] `MessageOutQueueProcess` is conditionally enabled (`AppHelper.IsIndy`), not universal for all stores.
+3. [INFERRED] `Thread.Sleep` pacing exists by design parameter (`requestDelayTimeInSecond`), but throughput/safety intent (rate-limit vs sequencing) remains unverified until config and integration SLOs are reviewed.
+4. [CODE-PROVEN] No recommendation to replace `Thread.Sleep` is made as an automatic fix in this phase.
+
+---
+
+## 23) Phase 2B pending inputs required to complete mandatory sections
+
+To complete requested sections (DAO+SQL evidence table, queue state-transition table with SQL state machine proof, transaction-boundary diagram with open/close points, static DB-call-count formula to SQL object level, race/crash analysis finalization), provide:
+
+1. `Shared.DataAccess\Implementation\SharedDAO.cs`
+2. `Shared.DataAccess\Implementation\PatientDAO.cs`
+3. `Shared.DataAccess\Interfaces\ISharedDAO.cs` and `IPatientDAO.cs` (if needed for mapping)
+4. `Shared.DataAccess\DapperDbContext.cs` (full)
+5. SQL object definitions referenced by those DAO methods (SP/function/view scripts)
+6. If available, index/schema definitions for queue/status predicates
+
+Without these, unresolved items stay `[UNKNOWN]`/`[RUNTIME-VERIFY]` by design.
+
+---
+
+## 24) Additional evidence index entries
+
+- **E06**: `Shared.RxCore\Services\SharedService.cs`, class `SharedService`, region `SendCommunication related methods`, methods listed in section 20.2, line N/A.
+- **E07**: `Shared.RxCore\Services\PatientService.cs`, class `PatientService`, method `GetPatientById(int,bool,...)` returning `PatientDAO.GetPatient(...)`, line N/A.
