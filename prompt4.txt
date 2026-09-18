@@ -1,0 +1,41 @@
+Correct `Phase2_MessageOutQueueProcess_Assessment.md` without performing another broad investigation.
+
+1. Preserve the original defect IDs:
+
+- `D-001`: `ProcessCommunication(...)` always returns `true`.
+- `D-002`: successful Diem communications may not be added to the success list.
+- `D-003`: `First(...)` is followed by an ineffective null check.
+
+Restore their exact evidence and line citations. Do not reuse these IDs for queue architecture findings.
+
+Create separate finding IDs for:
+
+- select/claim separation;
+- possible multi-worker duplicate selection;
+- unconditional claim update;
+- potentially abandoned `I` records;
+- connection-per-DAO-call behavior;
+- database chattiness.
+
+2. Correct the queue status-transition table. Show the actual status immediately before each update. If result-saving procedures update records currently marked `I`, show `I → S`, `I → D`, or `I → F`. If the procedures do not restrict the previous status, explicitly say that rather than inventing a source state.
+
+3. Rewrite the database-call-count model so every term is explained. Provide a table mapping each service/DAO call to its multiplier: once per cycle, patient, caregiver, prescription, communication, channel group, success batch, failure batch, or exception.
+
+Do not present a “typical” formula without measured cardinalities. Provide:
+
+- statically guaranteed minimum;
+- conditional symbolic formula;
+- loop-dependent upper-bound formula if one can be proven;
+- variables and assumptions.
+
+4. Replace “new connection per call” with precise wording:
+
+“Each DAO operation creates/opens its own connection scope and produces a separate database round trip. ADO.NET pooling may reuse an existing physical SQL connection.”
+
+5. Do not conclude that stale `I` recovery is absent from the entire system unless all references to `ProcessStartTime`, `Status='I'`, and relevant queue-recovery procedures have been searched. Otherwise state:
+
+“No stale-`I` recovery was found in the analyzed path; solution-wide recovery remains `[RUNTIME-VERIFY]`.”
+
+6. State clearly that the duplicate-processing race requires more than one worker/service instance. The code proves the race window, but deployment/runtime evidence must confirm whether concurrent instances actually exist.
+
+Produce one clean, cohesive final report. Do not modify production code or database objects.
