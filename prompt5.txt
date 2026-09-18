@@ -1,0 +1,85 @@
+Follow `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` and begin the next workflow assessment.
+
+Create:
+
+`Phase3_RxDetail_Prescription_Workflow_Assessment.md`
+
+Do not assume a workflow called “Open Prescription.” Discover the actual workflow names and triggers from the code.
+
+Start by reading:
+
+- the module registration for `Nexxsys.Modules.RxDetail`;
+- `RxDetailViewModel`;
+- `ProcessNewRxViewModel`;
+- their commands, event handlers, navigation handlers, and initialization methods;
+- `Shared.RxCore.Services.PrescriptionService`;
+- every service, DAO, integration, and database method reached from those entry points.
+
+First, create a table of the real user-initiated workflows discovered in these classes. For each include:
+
+- workflow name derived from code terminology;
+- exact UI command or event;
+- entry class and method;
+- business purpose;
+- service methods called;
+- read/write behavior;
+- external claim, adjudication, printing, or queue involvement;
+- exact citations.
+
+Select the workflow with the broadest database and user-latency impact and trace it end to end.
+
+Analyze:
+
+1. UI command/event and navigation path.
+2. View-model initialization and property-loading sequence.
+3. Every service and DAO method called.
+4. Every query, stored procedure, function, table, and view.
+5. Database calls made inside loops.
+6. Repeated or duplicate calls with identical parameters.
+7. Calls caused by property getters, binding, validation, selection changes, or rendering.
+8. Synchronous database or network work on the UI thread.
+9. `.Wait()`, `.Result`, `Thread.Sleep`, `Task.Run`, locks, and dispatcher usage.
+10. Read-versus-write behavior.
+11. Transaction boundaries.
+12. Claim/adjudication or other external calls, including timeout and retry handling.
+13. Printing and queue side effects.
+14. Post-save refreshes that reload data.
+15. Data loaded for hidden tabs or controls before it is needed.
+16. Connection scopes and database round trips.
+17. Cancellation and stale-result handling.
+18. Error paths and partial-success behavior.
+
+Build an auditable database-call model using variables for relevant entities. Expand nested DAO calls, including calls made inside patient, prescription, drug, plan, claim, and workflow-loading methods.
+
+Generate:
+
+- component/call-chain diagram;
+- workflow sequence diagram;
+- UI-loading timeline;
+- database-chattiness map;
+- read-versus-write diagram;
+- transaction and external-integration diagram.
+
+Every conclusion must include exact project, file, class, method, and line citations. Cite SQL objects and definitions where available.
+
+Clearly distinguish:
+
+- `[CODE-PROVEN]`
+- `[CONFIG-PROVEN]`
+- `[RUNTIME-PROVEN]`
+- `[INFERRED]`
+- `[RUNTIME-VERIFY]`
+- `[UNKNOWN]`
+
+Include:
+
+- top findings;
+- confirmed defects;
+- runtime measurements required;
+- severity, effort, and implementation-risk tables;
+- quick wins;
+- medium-term improvements;
+- areas not to change;
+- an incremental target that preserves the existing UI, service layer, and database.
+
+Do not modify production code, configuration, or database objects. If source access fails, identify the exact missing files or methods and stop rather than filling gaps with assumptions.
