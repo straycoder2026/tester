@@ -1,0 +1,102 @@
+Follow `ARCHITECTURE_SCALABILITY_PLAYBOOK.md`.
+
+Create:
+
+`Phase4_ProcessNewRx_CreateRxs_Assessment.md`
+
+Analyze the complete prescription-creation workflow beginning with:
+
+- `ProcessNewRxViewModel.OnOkClick(...)`
+- `ProcessNewRxViewModel.ProcessOkClick(...)`
+- each invocation of `newRxItem.RxItem.CreateRxs()`
+
+Do not assume what `CreateRxs()` does. Determine the concrete runtime types of `RxItem`, locate every implementation of `CreateRxs()`, and identify which implementation is used for each item type.
+
+Trace the complete path through:
+
+- UI validation;
+- prescription creation and saving;
+- patient, doctor, drug, plan, pricing, and clinical validation;
+- workflow and concurrency locks;
+- claim creation or adjudication;
+- external network calls;
+- database reads and writes;
+- audit/history records;
+- workbench or queue updates;
+- label or document print requests;
+- OCR updates;
+- sticky notes and attachments;
+- post-save refreshes;
+- error recovery and partial success.
+
+For every step document:
+
+- exact project, file, class, method, and line numbers;
+- synchronous or asynchronous execution;
+- UI-thread behavior;
+- service and DAO calls;
+- SQL queries, stored procedures, functions, tables, and views;
+- transaction boundaries;
+- external calls, timeouts, and retries;
+- whether the operation occurs once per batch, prescription, drug, plan, claim, communication, or attachment.
+
+Pay special attention to:
+
+1. The loop around `CreateRxs()`.
+2. Database or external calls performed independently for each item.
+3. `.Wait()`, `.Result`, `WaitWithPumping`, `Task.Run`, `Parallel.ForEach`, and dispatcher usage.
+4. Whether a failure after some items have been saved leaves a partially processed batch.
+5. Whether retrying the command can create duplicate prescriptions, claims, queue records, or print requests.
+6. Whether a database transaction spans the entire item, only individual stored procedures, or no coordinated unit.
+7. Whether external claim/adjudication calls occur inside a database transaction.
+8. Whether the UI can submit the command twice.
+9. Whether cancellation is possible.
+10. Whether post-save code reloads the newly created prescriptions.
+11. Whether attachments, OCR, sticky notes, labels, and queue updates are committed consistently with the prescription.
+12. Which operations could safely be batched and which must preserve item-level ordering.
+
+Create an auditable call-count model using variables such as:
+
+- `B` = items in the submitted batch;
+- `R` = prescriptions created;
+- `PL` = plans processed;
+- `CL` = claim/adjudication attempts;
+- `A` = attachments;
+- `L` = labels or print requests;
+- `V` = validation operations.
+
+Separate:
+
+- database round trips;
+- stored-procedure result sets;
+- external network calls;
+- UI-thread blocking time.
+
+Generate:
+
+- end-to-end sequence diagram;
+- write and transaction path;
+- database-chattiness map;
+- external claim/adjudication flow;
+- partial-failure and retry diagram;
+- prescription/claim/queue/print consistency diagram.
+
+Classify findings accurately:
+
+- Use “confirmed defect” only for demonstrably incorrect behavior.
+- Use “performance risk” for statically visible patterns whose impact requires measurement.
+- Do not assign High severity solely because a loop or large result set exists.
+
+Include:
+
+- top findings;
+- confirmed defects;
+- performance and scalability risks;
+- consistency and duplicate-submission risks;
+- runtime measurements required;
+- quick wins;
+- medium-term incremental improvements;
+- areas not to change;
+- severity, effort, and implementation-risk tables.
+
+Do not modify production code, configuration, or database objects. If a required implementation or SQL definition is unavailable, identify it precisely and keep the conclusion `[UNKNOWN]` or `[RUNTIME-VERIFY]`.
