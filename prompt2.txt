@@ -1,0 +1,81 @@
+`ARCHITECTURE_SCALABILITY_PLAYBOOK.md` exists in the solution and is currently open. Read the open file directly before continuing. Do not report it as missing unless you have attempted to read this exact file and path.
+
+
+Continue the `MessageOutQueueProcess` investigation with a Phase 2B data-access and defect-verification analysis.
+
+Read `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` first.
+
+Update `Phase2_MessageOutQueueProcess_Assessment.md`. Do not modify production code or database objects.
+
+Trace the concrete implementation of every database-facing method used by `MessageOutQueueService`, including:
+
+- `GetMessageOutQueues`
+- `SetMessageOutQueuesProcessingInfo`
+- `SetQueuesErrorInfo`
+- `CreateCommunication`
+- `CancelMessageOutQueues`
+- `GetCommunications`
+- `SaveCommunicationSendingResults`
+- `SaveMsgOutQueueSendingResults`
+- `IsPatientInCare`
+- `GetCaregiversForPickupReminders`
+- `GetRxCommunicationDetails`
+- `PatientService.GetPatientById`
+- every additional database method reached by these calls
+
+For each method, trace:
+
+service method  
+→ DAO/repository method  
+→ Dapper/database helper  
+→ SQL query or stored procedure  
+→ tables, views, and functions  
+→ transaction and connection behavior
+
+Determine with code evidence:
+
+1. Whether selecting and claiming queue records is atomic.
+2. Whether two service instances could select or send the same record.
+3. Which queue statuses are used and every allowed status transition.
+4. What happens to records left “in process” after a crash.
+5. Whether there is a retry limit, retry delay, or poison-message state.
+6. Whether database calls use separate connections or a shared transaction.
+7. Whether external HTTP/service calls occur while a database transaction is open.
+8. Whether queue queries have a batch limit.
+9. Whether queue selection and status predicates have supporting indexes, if schema/index definitions are available.
+10. The static database-call-count formula per polling cycle, patient, caregiver, prescription, communication, and external-send result.
+
+Verify these three reported code defects directly:
+
+- `ProcessCommunication(...)` allegedly always returns `true`.
+- `SendPatientCommunicationToDiem(...)` allegedly fails to add successful communications to the success list.
+- The Healthera, Amjay, or SMS paths allegedly use `First(...)` followed by a null check that cannot prevent the exception.
+
+For each suspected defect:
+
+- show the exact relevant code;
+- provide project, file, class, method, and line numbers;
+- explain the precise execution path that triggers it;
+- identify resulting database or queue state;
+- identify whether existing tests cover it;
+- classify it as confirmed defect, intentional behavior, or unverified hypothesis.
+
+Do not automatically recommend replacing `Thread.Sleep` with a non-blocking delay. First determine why pacing exists, whether the worker is synchronous by design, whether the external API imposes rate limits, and whether asynchronous execution would actually improve throughput safely.
+
+Add these sections to the report:
+
+- complete DAO and SQL evidence table;
+- queue state-transition table;
+- transaction-boundary diagram;
+- static database-call-count model;
+- multi-worker race analysis;
+- crash/restart analysis;
+- verified defects;
+- rejected or corrected earlier assumptions;
+- runtime tests needed;
+- revised severity, effort, and risk table;
+- revised incremental recommendations.
+
+Use exact line numbers. If a SQL or stored-procedure definition is unavailable, identify its exact name and label the missing definition `[RUNTIME-VERIFY]`.
+
+If source access fails, stop instead of filling the report with inferred findings.
