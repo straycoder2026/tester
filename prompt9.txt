@@ -1,0 +1,75 @@
+Perform a final evidence and presentation-quality correction of:
+
+`docs\architecture\PropelRx_Architecture_Scalability_Assessment.md`
+
+Do not add new workflows and do not modify production code.
+
+1. Correct the deployment/runtime topology.
+
+The analyzed evidence shows Prism modules, `Shared.RxCore`, and `Shared.DataAccess` as referenced libraries. Do not depict a separate application-server tier unless deployment evidence proves one exists.
+
+Show:
+
+- PropelRx desktop process containing UI modules, service libraries, and DAO libraries;
+- its verified or likely SQL connection;
+- separate Windows service processes for external messaging, printing, and fax;
+- SQL Server;
+- external integrations;
+- unknown host counts and locations marked `verify`.
+
+If direct desktop-to-SQL deployment is not conclusively proven, label the connection `[INFERRED]` rather than inventing an application-service node.
+
+2. Qualify the queue call-count formula.
+
+Describe it as:
+
+“A symbolic lower-bound model of statically visible workflow-level DAO/database operations.”
+
+State that nested DAO calls, SQL functions, triggers, and stored-procedure-internal operations are not fully expanded.
+
+3. Reassess severity independently from confidence.
+
+- Do not assign High severity only because code behavior is confirmed.
+- `D-001` may be Medium unless the unreachable false result materially affects monitoring or recovery.
+- Keep `D-002` High only if the downstream status impact is demonstrated; otherwise use Medium-High with validation required.
+- Mark the 67-result-set contract and RxDetail locking/hydration as performance risks with runtime-dependent severity.
+- Treat unknown printing/adjudication reachability as an information gap or runtime-verification item, not a Medium-severity defect/risk.
+
+Add one sentence explaining why each High-severity rating is justified.
+
+4. Correct retry wording.
+
+The code proves that the modal remains open after the partial-failure path. Whether the OK action can be executed again safely or concurrently requires runtime/UI verification. Do not state that safe retry is code-proven.
+
+5. Refine quick wins.
+
+Keep these as quick wins:
+
+- targeted tests and engineering validation for D-001/D-002/D-003;
+- workflow timing and correlation;
+- queue lag/status counts;
+- RxDetail first-render measurement;
+- clear partial-success messaging.
+
+Move database-level idempotency safeguards, atomic queue claiming, async conversion, and stored-procedure changes to medium-term work.
+
+6. Strengthen privacy requirements.
+
+Use random workflow correlation IDs and aggregate counts. Do not recommend logging patient IDs, prescription IDs, or hashed versions of those identifiers. Hashing does not automatically make regulated identifiers safe.
+
+7. Refine approval language.
+
+Change “CareRx can approve confirmed queue fixes now” to:
+
+“CareRx can approve a scoped engineering work package to validate, test, and remediate D-001/D-002/D-003.”
+
+Production deployment still requires code review, regression testing, integration testing, and rollout/rollback approval.
+
+8. Ensure the final decision summary separates:
+
+- approve investigation/instrumentation now;
+- approve scoped engineering validation now;
+- approve implementation only after validation;
+- defer until runtime evidence exists.
+
+Preserve all exact source citations and evidence labels. Keep the report cohesive and remove any duplicate or contradictory statements.
