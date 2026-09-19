@@ -1,0 +1,126 @@
+Analyze the PropelRx solution to determine whether a Strangler Fig migration with sequential claim processing is technically and operationally feasible.
+
+Create:
+
+`docs/architecture/Claim_Sequencing_Strangler_Feasibility_Assessment.md`
+
+Read `ARCHITECTURE_SCALABILITY_PLAYBOOK.md` and the existing PropelRx architecture assessment first.
+
+Do not modify production code, configuration, SQL objects, or deployment files.
+
+## Objective
+
+Determine whether every claim operation requiring ordering can be routed through one sequencing boundary where:
+
+- claims for the same business key execute sequentially;
+- claims for different keys can execute concurrently;
+- retries are idempotent;
+- reversals, rebills, and adjustments preserve dependencies;
+- legacy and new callers cannot bypass the ordering boundary;
+- the migration can occur incrementally without rewriting PropelRx.
+
+Do not assume that the correct key is `PatientId`. Derive the required ordering scope from the code and business rules.
+
+Possible keys to evaluate include:
+
+- patient;
+- pharmacy + patient;
+- patient + insurer;
+- prescription;
+- authorization chain;
+- original claim transaction;
+- another domain-specific key.
+
+## 1. Discover every claim operation
+
+Search the entire solution for claim-related entry points and terminology, including:
+
+- claim;
+- adjudication;
+- submit;
+- transmit;
+- reversal;
+- rebill;
+- resubmit;
+- adjustment;
+- reauthorization;
+- refill;
+- PharmaNet;
+- CPS;
+- third-party payer;
+- response code;
+- transaction number;
+- authorization chain;
+- claim queue;
+- claim status.
+
+Inspect relevant projects, including where applicable:
+
+- `Nexxsys.Modules.RxDetail`;
+- `Shared.RxCore`;
+- `Shared.DataAccess`;
+- `CPS_Library`;
+- `CPS_Monitor`;
+- `CPS_Report`;
+- `Nexxsys.Modules.Province`;
+- prescription, patient, plan, and workbench modules;
+- Windows services and background processors;
+- external integration clients.
+
+Create an inventory table containing:
+
+- operation name;
+- business purpose;
+- user, service, queue, timer, or integration trigger;
+- exact entry class and method;
+- downstream service methods;
+- DAO and SQL methods;
+- external integration client;
+- read/write behavior;
+- synchronous or asynchronous behavior;
+- current lock or transaction behavior;
+- exact source citations.
+
+## 2. Trace every claim call path
+
+For every claim submission, reversal, rebill, adjustment, or retry path, trace:
+
+```text
+UI/service/worker trigger
+→ business validation
+→ claim construction
+→ sequencing or locking logic
+→ database writes
+→ external transmission
+→ response handling
+→ local result persistence
+→ subsequent workflow/printing/queue actions
+```
+
+Cite exact:
+
+- project;
+- file;
+- class;
+- method;
+- line numbers;
+- stored procedures;
+- tables and functions;
+- configuration keys;
+- external client methods.
+
+Identify all paths capable of reaching the external adjudicator.
+
+## 3. Derive the ordering invariant
+
+Determine from code evidence:
+
+1. Which operations must execute in order.
+2. Which entity or combination of entities defines the sequence.
+3. Whether ordering is required per patient, pharmacy, insurer, prescription, authorization chain, or original transaction.
+4. Whether a reversal must wait for the original claim.
+5. Whether a rebill must wait for reversal completion.
+6. Whether two independent prescriptions for one patient may execute concurrently.
+7. Whether operations from different pharmacies can affect the same sequence.
+8. Whether ordering is enforced locally, in SQL, by CPS, or by the external adjudicator.
+9. Whether the external system
