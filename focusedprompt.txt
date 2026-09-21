@@ -1,0 +1,22 @@
+Revise `docs/architecture/PropelRx_Solution_Wide_Performance_Roadmap.md` without adding another broad solution scan.
+
+1. Verify the proposed claim sequencing key against the actual claim coordinator, TransactionQueue DAO/SQL, reversal, rebill, and trace-number paths. Add direct project/file/method/line and SQL citations. If one universal key cannot be proven, label the alternatives `[RUNTIME-VERIFY]` and list the exact CareRx business decision needed. Preserve the rule that related claims execute sequentially.
+
+2. Rework the first 2 months for two developers at the report’s stated 1.1–1.2 effective FTE capacity. Estimate developer-days for each item, identify its owner and external dependencies, and divide the plan into:
+   - committed scope;
+   - stretch scope;
+   - deferred scope.
+
+   Do not assume QA, DBA, operations, and release approvals happen instantly. Set a maximum of one major implementation task at a time.
+
+3. Separate the three queue defect investigations from performance improvements. Each defect should have a test-first validation gate before its proposed fix is scheduled for release.
+
+4. Treat atomic queue claiming as mandatory before increasing concurrent worker instances. Measurement may determine urgency and implementation design, but absence of observed duplicates does not make unsafe multi-worker claiming acceptable.
+
+5. Correct the privacy rule everywhere: use random workflow correlation IDs and aggregate counts/timings/statuses. Do not log patient, prescription, or claim identifiers or hashed versions of them.
+
+6. Review all `[CODE-PROVEN]` labels. Where a claim is supported only by another assessment rather than direct source, add direct source citations or downgrade the label. In particular, review the claim sequencing key, absence of unified correlation, and any claimed duplicate RxDetail load.
+
+7. Update the roadmap decision gates. Each 6- and 12-month initiative must have a measurable trigger, a business-safety gate, an estimated developer effort, required non-developer support, and a clear stop/defer condition.
+
+Keep the report concise and cohesive. Do not modify production code, SQL objects, configuration, or deployment files.
