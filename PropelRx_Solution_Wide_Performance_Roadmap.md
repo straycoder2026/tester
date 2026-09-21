@@ -22,7 +22,7 @@ This report provides an assessment-only, evidence-based, solution-wide performan
 - [CODE-PROVEN] Claim sequencing is key-sensitive and not safely reducible to `PatientId` alone.
 - [CODE-PROVEN] Operational ordering centers on `TransactionQueue` keying (`ExternalId + TransactionType + sequence fields`) with a distinct trace-number reversal key path.
 - [CODE-PROVEN]/[INFERRED] No recommendation in this roadmap parallelizes claims within the same business sequence key or introduces bypassable submission boundaries.
-  - Evidence: `docs/architecture/Claim_Sequencing_Strangler_Feasibility_Assessment.md:19-26`, `:174-190`, `:210-226`.
+	- Evidence: `Shared.DataAccess/Implementation/RxDetailDAO.cs:2146-2156`, `:2209-2223`; `Shared.RxCore/Services/PrescriptionService.cs:9729-9782`, `:9955-9963`, `:10027-10035`; `CPS_Library/Claim/Coordinator.cs:157-170`, `:471-479`, `:552-592`; `CPS_Library/Data/ProcUtil.cs:104-107`, `:998-1095`, `:1513-1528`, `:743-767`.
 
 ### Incremental delivery recommendation
 - Start immediately with instrumentation + targeted defect stabilization + small low-risk fixes.
@@ -69,6 +69,24 @@ Assessment covers solution-wide performance/scalability risk inventory and phase
 - [RUNTIME-VERIFY] Runtime evidence (Query Store/XEvent/load/incident metrics) is not embedded in repository artifacts.
 - [UNKNOWN]/[RUNTIME-VERIFY] Some SQL procedure internals are unavailable in workspace traces; runtime DB inspection remains required.
 
+### 2.5 Claim sequencing key verification (code-level)
+- [CODE-PROVEN] Regular/NMS/reversal queue operations are keyed by `TransactionQueue` row identity (`ExternalId`, `TransactionType`) plus `ActiveSequence/StartSequence/EndSequence` progression semantics.
+  - Evidence:
+	- Queue identity and upsert: `Shared.DataAccess/Implementation/RxDetailDAO.cs:2146-2156`, `:2209-2223`.
+	- Queue creation from claim submit paths: `Shared.RxCore/Services/PrescriptionService.cs:9955-9965`, `:9972-10003`.
+	- Sequence consumption: `CPS_Library/Claim/Coordinator.cs:157-170`, `:552-592`.
+	- Sequence advancement SQL: `CPS_Library/Data/ProcUtil.cs:743-767`.
+	- Claim queue selectors: `CPS_Library/Data/ProcUtil.cs:104-107`, `:998-1095`.
+- [CODE-PROVEN] Trace-number reversal uses a different key form (`ExternalId = TraceNumber`) and is mapped back to Rx in coordinator/SQL utility.
+  - Evidence: `Shared.RxCore/Services/PrescriptionService.cs:10017-10035`; `CPS_Library/Claim/Coordinator.cs:471-479`; `CPS_Library/Data/ProcUtil.cs:1513-1528`.
+- [RUNTIME-VERIFY] Rebill-path sequencing equivalence to regular claim sequencing cannot be proven from static traces alone in this pass.
+  - CareRx business decision required: confirm whether rebill must always reuse the same sequencing domain/policy as regular claim submit or has sanctioned exceptions.
+- [RUNTIME-VERIFY] A single universal sequencing key across all legacy call paths cannot be proven from static traces alone because some path semantics are SP-driven.
+  - CareRx business decision required: confirm canonical sequencing domain for safety-critical ordering as either:
+	1. `RxId + TransactionType + sequence-window` (with explicit trace-number exception), or
+	2. explicit claim-chain key policy that includes trace-number reversal mapping rules and rebill linkage.
+  - Until decided, related claims must continue sequential execution per current queue/coordinator semantics.
+
 ---
 
 ## 3. Measured Bottlenecks vs Unverified Risks
@@ -103,13 +121,13 @@ Assessment covers solution-wide performance/scalability risk inventory and phase
 | D-002 | Confirmed defect | Success-list mapping gap in Diem path | Outbound comm queue | [CODE-PROVEN] | `MessageOutQueueService.cs:935-977` | result-state inconsistency | mixed send outcome rates | populate success list deterministically | Medium |
 | D-003 | Confirmed defect | `First(...)` + null check dead branch | Outbound comm queue | [CODE-PROVEN] | `MessageOutQueueService.cs:811-816`, `:887-892` | exception risk | missing-interface incidence | safe selection/null handling | Low |
 | F-001 | Code-proven risk | UI blocking waits with dispatcher pumping | RxDetail/ProcessNewRx + other modules | [CODE-PROVEN] | `RxDetailViewModel.cs:3192-3199`; `ProcessNewRxViewModel.cs:1770-1805`; `AsyncHelpers.cs:48-59` | responsiveness/re-entrancy risk | UI first-render and command re-entry metrics | staged async conversion on hottest paths | Medium |
-| F-002 | Code-proven risk | Per-Rx lock/load fan-out under navigation selection | RxDetail | [CODE-PROVEN] | `RxDetailViewModel.cs:3202-3235`; `Phase3 report` | potential N+1-like DB pressure | lock count/duration by navigation | trim lock payload + coalesce reloads | Medium |
+| F-002 | Code-proven risk | Per-Rx lock/load fan-out under navigation selection | RxDetail | [CODE-PROVEN] | `Nexxsys.Modules.RxDetail/ViewModels/RxDetailViewModel.cs:3202-3235`; `Shared.RxCore/Services/ConcurrencyService.cs:356-370`, `:457-477` | potential N+1-like DB pressure | lock count/duration by navigation | trim lock payload + coalesce reloads | Medium |
 | F-003 | Code-proven risk | Broad `RxDataPoint.All` hydration + large multi-RS contract | RxDetail/CPS surfaces | [CODE-PROVEN]/[RUNTIME-VERIFY] | `RxDetailDAO.cs:31-107`, `:251`; `RxDetailService.cs:61-96` | high payload/parse cost | Query Store p95/p99 + reads/rows | reduce first-render scope, optimize SQL by evidence | Medium |
 | F-004 | Code-proven risk | Queue select and claim are separate operations | MessageOutQueue | [CODE-PROVEN]/[INFERRED] | `MessageOutQueueService.cs:76-130`; Phase2 findings F-101..F-103 | duplicate work race under scale-out | overlap/duplicate claim telemetry | conditional/atomic claim semantics if needed | Medium-High |
 | F-005 | Code-proven risk | Loop-driven queue DB chattiness | MessageOutQueue | [CODE-PROVEN] | `MessageOutQueueService.cs:85-155`; Phase2 call model | throughput sensitivity to cardinalities | P/R/C/M/G/X/U/D distributions | remove redundant calls, batch where safe | Medium |
 | F-006 | Code-proven risk | Partial-success commits before later item failure; retry amplification potential | ProcessNewRx/CreateRxs | [CODE-PROVEN]/[RUNTIME-VERIFY] | `ProcessNewRxViewModel.cs:1774-1813`; Phase4 conclusions | duplicate side effects risk | retry duplicate artifact audit | explicit partial-success reporting + idempotent controls | Medium-High |
 | F-007 | Observability gap | No unified workflow correlation from UI->service->DAO->queue->integration | Cross-cutting | [RUNTIME-VERIFY] | prior reports runtime plans | difficult hotspot attribution | correlation completeness | add correlation/timing/db-call instrumentation | Low |
-| F-008 | Safety constraint | Claim sequencing key is not `PatientId` alone; trace reversal has alternate key path | Claims/reversal/rebill | [CODE-PROVEN] | Claim sequencing report CSF-002/003 | unsafe parallelization/bypass risk | parity + ordering tests | enforce shared sequencing boundary before routing changes | High |
+| F-008 | Safety constraint | Claim sequencing key is not `PatientId` alone; trace reversal has alternate key path | Claims/reversal/rebill | [CODE-PROVEN]/[RUNTIME-VERIFY] | `RxDetailDAO.cs:2146-2156`, `:2209-2223`; `PrescriptionService.cs:9955-9965`, `:10017-10035`; `Coordinator.cs:157-170`, `:471-479`, `:552-592`; `ProcUtil.cs:998-1095`, `:1513-1528` | unsafe parallelization/bypass risk | parity + ordering tests + business key confirmation | enforce shared sequencing boundary before routing changes | High |
 
 ---
 
@@ -124,7 +142,7 @@ Assessment covers solution-wide performance/scalability risk inventory and phase
 | 5 | Add RxDetail first-render + DB-call correlation timers | F-001/F-002/F-003/F-007 | Medium | S-M | Medium | Low | #4 preferred | true hotspot ranking | baseline p50/p95 with call counts captured | disable instrumentation |
 | 6 | Add ProcessNewRx partial-success and retry telemetry + UX outcome visibility | F-006/F-007 | Medium | S-M | Medium | Medium | none | safer operations and repro | forced failure scenario emits complete artifact audit | revert UX flags/instrumentation |
 | 7 | Remove redundant RxDetail reload branches where code-proven duplicate | F-002/F-003 | Medium | M | Medium | Medium | #5 | fewer calls/latency | reduced calls per open + no behavior drift | feature flag / revert |
-| 8 | Atomic/conditional queue claim pilot (only if telemetry proves overlap/stale risk) | F-004 | Medium | M-L | Medium-High | Medium | #4 telemetry evidence | lower duplicate-claim risk | overlap metric drops with parity maintained | DB/SP rollback path |
+| 8 | Atomic/conditional queue claim implementation planning and pilot (mandatory before any worker concurrency increase) | F-004 | Medium | M-L | Medium-High | Medium | #4 telemetry + DBA design support | lower duplicate-claim risk with safe scale-out prerequisite met | overlap metric drops with parity maintained | DB/SP rollback path |
 | 9 | Hot-path async refactor pilot (RxDetail/ProcessNewRx sections) | F-001 | Medium | M-L | High | Medium-High | #5 baseline & guard tests | improved responsiveness | measurable first-render/interaction improvement without regressions | scoped feature flag |
 | 10 | Claim sequencing boundary hardening prework (ingress inventory + parity checks) | F-008 | High | M | Medium | High if incorrect | sequencing telemetry + decision gates | prevents unsafe modernization | 100% claim-operation path inventory + ordering parity tests | keep legacy path only |
 
@@ -144,32 +162,51 @@ Implication:
 
 ---
 
-## 7. Detailed First 2 Months Plan (Prove and Stabilize)
+## 7. Detailed First 2 Months Plan (Prove and Stabilize, 1.1–1.2 FTE)
 
-### 7.1 Goals
-- Establish baseline measurements for top workflows.
-- Validate/fix already-confirmed queue defects (`D-001..D-003`).
-- Measure queue lag/stale `I`, RxDetail first-render/DB calls, and ProcessNewRx partial-failure/retry behavior.
-- Implement only low-risk evidence-backed fixes.
+### 7.1 Capacity and execution model
+- Two developers at effective 1.1–1.2 FTE total.
+- Maximum concurrency: **one major implementation task at a time** + one small instrumentation/investigation task.
+- Assumed non-instant external dependencies: QA test slots, DBA query approvals, operations telemetry access, release/canary windows.
 
-### 7.2 Week-by-week plan
+### 7.2 Defect stream (separate from performance improvements)
+Each defect has a mandatory **test-first validation gate** before fix scheduling.
 
-| Week | Primary major task | Secondary small task | Deliverables | Validation gate |
-|---|---|---|---|---|
-| 1 | Instrumentation design + correlation IDs | Defect test harness scaffolding | telemetry schema/spec + test plan | review sign-off by dev+QA+ops |
-| 2 | Implement queue and workflow telemetry hooks | Baseline dashboard/query scripts | queue lag/stale `I`/status transition metrics | sample data capture verified |
-| 3 | Reproduce D-001..D-003 + implement fixes in branch | Add regression tests | fix package + unit/integration tests | tests green + peer review |
-| 4 | Stage/canary validation for D-fixes | Capture initial baseline metrics | defect fix release candidate | no regressions in canary logs |
-| 5 | RxDetail measurement pass (render/calls/multi-RS timing) | Workbench search/load metric probes | first measurement report | baseline confidence check |
-| 6 | ProcessNewRx failure/retry scenario instrumentation | partial-success UX diagnostics | retry artifact audit report | reproducible scenario with traces |
-| 7 | Small low-risk optimization(s) from measured waste only | tighten alert thresholds | incremental patch | measurable delta or rollback |
-| 8 | Consolidated 2-month findings/decisions | 6-month candidate shortlist | go/no-go package | steering decision meeting |
+| Defect | Owner | Dev-days | External dependencies | Test-first validation gate | Release gate |
+|---|---|---:|---|---|---|
+| D-001 return semantics | Dev A | 2.0 | QA | Reproduce failure path and assert incorrect always-true behavior in test harness | Canary pass + rollback check |
+| D-002 Diem success mapping | Dev A | 2.0 | QA + vendor stub/test endpoint | Mixed success/failure scenario proving incorrect success persistence baseline | Canary pass + reconciliation report |
+| D-003 unsafe `First(...)` lookup | Dev A | 1.0 | QA | Missing-interface path test proving current exception path | Canary pass + exception-rate check |
 
-### 7.3 “Not doing yet” list (explicit)
+### 7.3 Performance stream (committed / stretch / deferred)
+
+#### Committed scope (fits 2 months at 1.1–1.2 FTE)
+| Item | Owner | Dev-days | External dependencies | Deliverable |
+|---|---|---:|---|---|
+| Random workflow correlation ID + aggregate timing/count/status telemetry design | Dev B | 3.0 | Ops/Security review | Telemetry spec and field contract |
+| Implement queue and workflow aggregate telemetry hooks (no identifiers) | Dev B | 5.0 | Ops logging pipeline | Baseline queue/status/timing dashboards |
+| RxDetail first-render + DB-call measurement probes | Dev B | 3.0 | QA scenario scripts | Baseline report with p50/p95 and call-count distributions |
+| ProcessNewRx partial-success/retry measurement probes | Dev B | 3.0 | QA scripted failure cases | Retry amplification baseline report |
+| Defect test-first gates + release prep (D-001..D-003) | Dev A | 4.0 | QA + release manager | Signed defect validation and release package |
+
+#### Stretch scope (only if committed scope completes early)
+| Item | Owner | Dev-days | External dependencies | Entry condition |
+|---|---|---:|---|---|
+| One small low-risk measured waste fix (non-sequencing) | Dev B | 3.0 | QA | Baseline shows clear low-risk waste |
+| Queue telemetry alert thresholds and runbook hardening | Dev A | 2.0 | Ops | 2+ weeks baseline telemetry available |
+
+#### Deferred scope (explicitly not planned for first 2 months)
+| Item | Reason deferred |
+|---|---|
+| Atomic queue claim implementation | Requires baseline overlap/stale evidence and DBA design review |
+| RxDetail broad hydration redesign | Requires measured hotspot confirmation and parity test design |
+| Any claim sequencing boundary migration work | Requires canonical key business decision + parity corpus |
+
+### 7.4 “Not doing yet” list (explicit)
 - No large claim-routing architecture changes.
 - No CQRS replication default rollout.
 - No broad microservices/container platform initiative.
-- No worker scale-out expansion before claim/queue safety metrics justify it.
+- No worker scale-out expansion before **atomic queue claim safety controls** are in place.
 
 ---
 
@@ -184,7 +221,7 @@ Implication:
 
 | Item | Depends on | Why now | Effort | Risk | Pilot approach | Metric comparison | Rollback |
 |---|---|---|---|---|---|---|---|
-| Conditional/atomic queue claim (if overlap confirmed) | queue telemetry | address proven duplicate claim window risk | M-L | Med-High | one worker path first | duplicate/overlap/stale metrics pre/post | revert SP/claim mode |
+| Conditional/atomic queue claim (mandatory before any worker concurrency increase) | queue telemetry + DBA support | prerequisite safety control for scale-out and stale-`I` containment | M-L | Med-High | one worker path first | duplicate/overlap/stale metrics pre/post | revert SP/claim mode |
 | Eliminate redundant RxDetail hydration branches | RxDetail telemetry | reduce measured call/payload overhead | M | Med | one navigation branch at a time | calls/open, render latency | feature flag revert |
 | First-render data scope reduction using live authoritative DB | RxDetail baseline + parity tests | reduce payload on critical UI path | M-L | Med | selected tabs/sections first | p95 render, support incidents | scope toggle revert |
 | Targeted SQL optimization for measured hotspots only | Query Store/XE plans | improve top cost SQL only | M | Med | one proc/query per cycle | reads/duration plan stability | index/plan rollback |
@@ -212,7 +249,17 @@ Implication:
 | Integration-specific worker isolation pools | noisy-neighbor failures | not SQL/UI bottlenecks | must preserve business ordering where required | medium | possible | integration contention proven | defer if contention absent |
 | Containerization for new stateless components | deployment/isolation scaling | not inherent app performance gain | sequencing unaffected only if boundary-safe | medium-high | limited | operational scaling need proven | reject as default perf fix |
 
-### 9.3 Anti-patterns explicitly rejected
+### 9.3 Decision gates for 6- and 12-month initiatives
+| Initiative | Measurable trigger | Business-safety gate | Est. dev effort | Required non-dev support | Stop/defer condition |
+|---|---|---|---|---|---|
+| Atomic queue claim implementation | overlap/stale-`I` baseline breaches agreed threshold OR planned worker scale-out | CareRx sign-off on queue state semantics and recovery behavior | M-L | DBA, Ops, QA | If DB/SP constraints or ops rollout window unavailable |
+| RxDetail hydration reduction | p95 first-render and DB-call count exceed agreed targets for 2 consecutive measurement windows | No regression in clinical/safety-critical visible data on first render | M-L | QA, Product | If parity tests fail or benefit is below threshold |
+| Targeted SQL optimization | Query Store identifies top-cost SQL with repeatable high reads/duration | No change to claim/reversal correctness outcomes | M | DBA, QA | If plan stability cannot be preserved |
+| ProcessNewRx retry/idempotency controls | measured duplicate artifact/retry amplification above threshold | Product-approved partial-success UX + safety acceptance criteria | M | Product, QA | If business behavior decision is unresolved |
+| Claim sequencing boundary hardening prework | 100% known submit/reversal/rebill path inventory completed | CareRx decision on canonical sequencing key policy | M | Product, QA, Pharmacy SMEs | If canonical key decision remains unresolved |
+| Shared sequencing boundary implementation (12-month option) | sustained reliability/consistency issues after 6-month controls | Proven parity in regular/reversal/NMS/trace flows | L-XL (staged) | QA, Product, DBA, Ops | If parity or bypass safety gates fail |
+
+### 9.4 Anti-patterns explicitly rejected
 - one HTTP endpoint per DAO method;
 - unbounded parallel DB calls;
 - in-process-only claim locks across multi-machine deployments;
@@ -264,7 +311,7 @@ Implication:
 ## 13. Runtime Measurement Plan (Required)
 
 ### 13.1 Data sources
-- Application logs/traces with correlation IDs.
+- Application logs/traces with random workflow correlation IDs.
 - SQL Query Store + Extended Events + execution plans + waits/deadlocks.
 - Client-side timing for startup/login/render.
 - Queue depth/lag/retry/stale-item metrics.
@@ -287,7 +334,8 @@ Implication:
 
 ### 13.3 Privacy guardrails
 - No patient identifiers, claim payloads, credentials, or regulated identifiers in report outputs.
-- Use hashed/synthetic operational correlation IDs where needed.
+- Use **random workflow correlation IDs** and only aggregate counts/timings/statuses.
+- Do not log patient, prescription, or claim identifiers (including hashed versions).
 
 ---
 
@@ -390,7 +438,7 @@ flowchart LR
 3. Controlled measurement runs for RxDetail render/call profile and ProcessNewRx partial-failure/retry behavior.
 
 ### 17.2 What needs measurement or business-rule decision first?
-1. Atomic/conditional queue claim hardening (requires measured overlap/stale evidence).
+1. Atomic/conditional queue claim hardening design details (requires measured overlap/stale evidence and DBA input). This remains mandatory before any worker concurrency increase.
 2. RxDetail payload/deferred-load redesign scope (requires measured p95/p99 impact + parity tests).
 3. ProcessNewRx idempotency/retry behavior changes (requires product decision on expected user outcomes).
 4. Any claim-sequencing boundary migration step (requires complete producer inventory and parity tests).
@@ -417,3 +465,6 @@ flowchart LR
   - `Nexxsys.Modules.RxDetail/ViewModels/ProcessNewRxViewModel.cs:1764-1821`
   - `Shared.Infrastructure.UI/AsyncHelpers.cs:48-59`
   - `Shared.DataAccess/Implementation/RxDetailDAO.cs:31-107`, `:251`, `:2209-2230`
+  - `Shared.RxCore/Services/PrescriptionService.cs:9729-9782`, `:9955-9965`, `:10017-10035`
+  - `CPS_Library/Claim/Coordinator.cs:157-170`, `:471-479`, `:552-592`
+  - `CPS_Library/Data/ProcUtil.cs:104-107`, `:743-767`, `:998-1095`, `:1513-1528`
