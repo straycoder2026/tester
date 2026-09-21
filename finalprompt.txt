@@ -1,0 +1,9 @@
+Make a final targeted edit to `PropelRx_Solution_Wide_Performance_Roadmap.md`. Do not perform another broad analysis.
+
+1. Replace every remaining company-name reference with “the team,” “product owner,” or “pharmacy subject-matter experts.”
+2. State clearly that atomic claiming for the outbound `MessageOutQueue` does not solve claim ordering in the separate `TransactionQueue`/CPS path.
+3. Move the claim-sequencing business-rule workshop into the 0–2 month table as a decision deliverable. Keep implementation conditional in the 6–12 month table.
+4. In the 2–6 month table, label changes as candidates. State that two developers will select only the highest-value one or two after reviewing month-2 measurements.
+5. Correct the atomic-claim rollback: first restore the previous worker concurrency and reconcile in-flight records; never revert to unsafe claiming while additional workers remain active.
+
+Preserve the three executive tables and all source citations. Do not modify production code.
