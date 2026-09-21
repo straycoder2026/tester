@@ -1,0 +1,37 @@
+## Mandatory executive output: issues by delivery horizon
+
+The main output must be tables—not primarily narrative. Categorize every material performance, scalability, reliability, and claim-ordering issue into one of these cumulative horizons:
+
+- **0–2 months:** issues two developers can investigate, measure, test, or fix now.
+- **2–6 months:** issues requiring baseline measurements, additional tests, or moderate changes.
+- **6–12 months:** larger architectural issues that should be addressed only if earlier evidence and business decisions justify them.
+
+Create a separate table for each horizon. Use these exact columns:
+
+| ID | Issue | Evidence and current impact | Why this horizon? | What should change? | How will it be done? | Effort and dependencies | Business/claim-ordering risk | How success will be measured |
+|---|---|---|---|---|---|---|---|---|
+
+For every row:
+
+- **Issue:** Name the concrete problem, not a generic technology recommendation.
+- **Evidence and current impact:** Cite exact code/SQL locations. Distinguish measured impact from a code-proven risk whose impact is not yet measured.
+- **Why this horizon?:** Explain why it belongs in 2, 6, or 12 months given two developers, prerequisites, and business risk.
+- **What should change?:** State the desired behavior or outcome in plain language.
+- **How will it be done?:** Give the specific incremental implementation approach, affected components, tests, rollout, and rollback.
+- **Effort and dependencies:** Estimate developer-days or weeks, plus required QA, DBA, operations, vendor, or CareRx business input.
+- **Business/claim-ordering risk:** State whether the change could affect prescription correctness, claims, reversals, rebills, audit, or same-patient claim sequence.
+- **How success will be measured:** Specify a baseline and target metric. If no baseline exists, the first deliverable is to establish it; do not invent a target percentage.
+
+Include known issues such as queue-worker defects, non-atomic queue claiming, stale in-process records, queue database chattiness, RxDetail loading and UI waits, ProcessNewRx partial success, and claim-sequencing uncertainty. Add other issues only when supported by code or runtime evidence.
+
+Do not place an issue in the 12-month bracket merely because it sounds architectural. Put it there only when its dependencies and two-developer effort justify that timing. If an issue cannot safely be scheduled, put it in a separate **“Unscheduled—decision or evidence required”** table and state exactly what would allow scheduling.
+
+After the three tables, provide:
+
+1. The top three actions CareRx should authorize now.
+2. The decisions or access CareRx must provide.
+3. What the two developers will deliver at the end of months 2, 6, and 12.
+4. Which changes are conditional rather than committed.
+5. The major approaches that should not be pursued and why.
+
+Keep the executive summary to one page. Detailed code traces and diagrams belong in an appendix. The tables must be understandable without reading the appendix.
