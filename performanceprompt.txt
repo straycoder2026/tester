@@ -1,0 +1,252 @@
+Analyze the entire PropelRx Visual Studio solution for performance and scalability issues. Produce an evidence-based, prioritized improvement plan that **two developers** could deliver over cumulative **2-month, 6-month, and 12-month horizons**.
+
+Read these documents first:
+
+- `ARCHITECTURE_SCALABILITY_PLAYBOOK.md`
+- `docs/architecture/PropelRx_Architecture_Scalability_Assessment.md`
+- the completed Phase 1–4 workflow assessments, if available
+
+Create one report:
+
+`docs/architecture/PropelRx_Solution_Wide_Performance_Roadmap.md`
+
+This is an assessment only. Do not modify production code, SQL objects, configuration, or deployment files.
+
+## Non-negotiable business and technical constraints
+
+- Claims that belong to the same business sequence must execute in order. Determine the correct sequencing key from code and business rules; do not assume `PatientId` alone is sufficient.
+- Do not recommend parallelizing claim work within that key.
+- Do not recommend moving claim submission to a new API or worker while legacy paths can bypass the same sequencing boundary.
+- Preserve prescription, claim, reversal, rebill, audit, regulatory, and patient-safety behavior.
+- Do not propose CQRS read-model replication as the default. A prior attempt failed because business sequencing was affected. Evaluate live queries against the existing source of truth first.
+- Treat `IWorkflowRouter` and a Strangler façade as optional design candidates, not predetermined solutions.
+- Containers, Kubernetes, microservices, a generic workflow framework, and an API in front of every DAO method are not performance improvements by themselves.
+- Distinguish a stored procedure returning 67 result sets from 67 database round trips.
+- Do not infer production latency or frequency from source code alone.
+- Never include patient data, prescription data, claim payloads, credentials, or hashed regulated identifiers in the report or proposed telemetry.
+
+## 1. Establish the performance baseline
+
+Identify available evidence:
+
+- application logs and traces;
+- SQL Query Store, Extended Events, execution plans, waits, blocking, and deadlocks;
+- client startup and UI timing;
+- queue depth, lag, retry, and stale-item metrics;
+- worker CPU, memory, thread count, and connection-pool behavior;
+- external integration latency and errors;
+- production incidents and user complaints;
+- existing load/performance tests.
+
+If measurements are unavailable, create a specific measurement plan. Do not invent values.
+
+Define representative scenarios, including:
+
+- application startup/login;
+- Workbench loading;
+- patient and prescription search;
+- RxDetail navigation and selection;
+- ProcessNewRx/CreateRxs;
+- claim submission, reversal, and rebill;
+- outbound communications;
+- printing and fax;
+- batch jobs and reporting.
+
+## 2. Scan the entire solution
+
+Inventory performance risks across every project. Prioritize deeply tracing high-use or business-critical paths instead of giving every file equal attention.
+
+Inspect these categories:
+
+### Desktop/UI
+
+- synchronous database or network work on the UI thread;
+- `Wait()`, `.Result`, `WaitWithPumping`, dispatcher pumping, and re-entrancy;
+- repeated loading from navigation, property setters, binding, validation, selection changes, and rendering;
+- eager loading of hidden tabs and `RxDataPoint.All`;
+- large grids, lack of pagination/virtualization, excessive layout or mapping work;
+- cancellation and stale-result handling;
+- startup initialization and warmup.
+
+### Database/data access
+
+- commands per user action and per worker cycle;
+- calls inside loops and N+1 behavior;
+- repeated queries with identical parameters;
+- excessive round trips versus large single-result payloads;
+- stored-procedure duration, logical reads, returned rows/bytes, and plans;
+- missing batch limits and broad result sets;
+- transaction length, blocking, lock contention, and deadlocks;
+- connection-scope behavior versus physical connection pooling;
+- retry behavior and connection-pool exhaustion.
+
+### Workers and queues
+
+- select/claim atomicity;
+- stale in-process records;
+- polling frequency and empty polls;
+- batch size and bounded concurrency;
+- retry storms, poison records, dead-letter/reconciliation behavior;
+- idempotency and duplicate side effects;
+- ordering requirements by patient, pharmacy, prescription, claim chain, or other key;
+- safe scale-out limits.
+
+### Integrations
+
+- claim/adjudication, PIT, PharmaNet, Diem, SMS, printing, fax, and reporting dependencies;
+- calls on critical UI paths;
+- timeout, retry, circuit-breaker, and rate-limit behavior;
+- failure isolation between integrations;
+- external calls inside database transactions.
+
+### Resource and deployment behavior
+
+- CPU-heavy mapping, serialization, encryption, report rendering;
+- memory retention, caches, static collections, events, and disposal;
+- process and service topology;
+- number of desktop clients and worker instances;
+- network distance between clients and SQL;
+- whether containers would improve deployment or isolation, separately from performance.
+
+## 3. Produce evidence-backed findings
+
+For every finding include:
+
+- stable ID;
+- exact project, file, class, method, line, SQL object, or configuration citation;
+- affected workflow;
+- mechanism causing possible latency, throughput loss, contention, or failure;
+- whether the behavior is `[CODE-PROVEN]`, `[RUNTIME-PROVEN]`, `[INFERRED]`, `[RUNTIME-VERIFY]`, or `[UNKNOWN]`;
+- observed impact, if measured;
+- measurement needed if not measured;
+- business impact;
+- correctness/patient-safety risk;
+- proposed incremental remedy;
+- why the remedy should work;
+- possible regression or ordering risk.
+
+Separate these groups:
+
+1. Confirmed correctness defects.
+2. Measured performance bottlenecks.
+3. Code-proven performance risks with unmeasured impact.
+4. Operational/observability gaps.
+5. Architectural options requiring feasibility work.
+6. Areas that should not be changed.
+
+Do not call a loop, a synchronous wait, a large stored procedure, or a 67-result-set contract a confirmed bottleneck without runtime evidence.
+
+## 4. Rank opportunities for a two-developer team
+
+For each proposed action estimate:
+
+- developer effort: XS, S, M, L, or XL;
+- elapsed time including testing and release;
+- implementation risk;
+- business/regression risk;
+- dependency on another action;
+- need for DBA, operations, QA, product, vendor, or security involvement;
+- expected qualitative benefit;
+- measurable success criterion;
+- rollback method.
+
+Do not present an XL item as deliverable by two developers without splitting it into independently useful stages.
+
+Assume the two developers cannot spend 100% of their time on feature work. State the capacity assumption explicitly and allow time for code review, tests, defects, deployments, and production support. Limit work in progress to one major change plus one small investigation/instrumentation task.
+
+## 5. Build three cumulative horizons
+
+### First 2 months — prove and stabilize
+
+Focus on work a two-developer team can realistically finish:
+
+- establish baseline telemetry for the top workflows;
+- validate and test already identified queue defects;
+- measure queue lag, stale `I` records, and active worker count;
+- measure RxDetail first-render time, SQL calls, and `p_GetPrescription_MultiRS` cost;
+- reproduce ProcessNewRx partial success and retry behavior;
+- implement only small, low-risk, evidence-supported fixes.
+
+Show a week-by-week plan, deliverables, test gates, and a clear “not doing yet” list.
+
+### By 6 months — remove measured hotspots
+
+Based on the first two months of evidence, select a limited number of medium-size changes such as:
+
+- conditional atomic queue claiming and recovery, if needed;
+- eliminating redundant RxDetail hydration;
+- smaller first-render data loading against the authoritative SQL database;
+- targeted stored-procedure optimization supported by execution plans;
+- safer ProcessNewRx partial-success reporting and retry controls;
+- claim-ordering protection if all submission paths and the correct sequencing key are known.
+
+Show dependencies, pilot rollout, metrics comparison, and rollback.
+
+### By 12 months — scale proven boundaries
+
+Evaluate larger but incremental changes only if the earlier measurements justify them:
+
+- a coarse-grained workflow façade for selected hotspots;
+- shared claim sequencing across all legacy and new callers;
+- idempotent command handling and workflow journaling;
+- transactional outbox for suitable side effects;
+- isolated integration worker pools;
+- containerizing new stateless APIs/workers where deployment or independent scaling provides measurable benefit.
+
+Do not propose a universal workflow framework, big-bang database access migration, or Kubernetes without a demonstrated need.
+
+For each 12-month option state the prerequisites that must be true before work begins.
+
+## 6. Compare architecture choices explicitly
+
+Evaluate these options against the measured PropelRx problems:
+
+- improve current client/service/DAO paths in place;
+- coarse-grained live-query API;
+- Strangler façade for one workflow;
+- SQL-backed sequencing/queue;
+- broker sessions or keyed partitions;
+- workflow journal and transactional outbox;
+- integration-specific worker isolation;
+- Windows containers for existing services;
+- modern .NET containers for new stateless components.
+
+For every option state:
+
+- which specific bottleneck or failure it addresses;
+- what it does **not** fix;
+- ordering and consistency implications;
+- operational burden;
+- fit for a two-developer team;
+- adoption trigger;
+- reason to defer or reject it.
+
+Explicitly flag antipatterns such as one HTTP endpoint per DAO method, unbounded parallel database calls, in-process-only claim locks across multiple machines, non-idempotent retries, and scaling queue workers before atomic claiming is fixed.
+
+## 7. Required output
+
+Include:
+
+1. One-page executive summary.
+2. Measured bottlenecks versus unverified risks.
+3. Solution-wide findings table.
+4. Top 10 opportunities ranked by benefit, evidence, effort, and risk.
+5. Two-developer capacity assumptions.
+6. Detailed 2-month plan.
+7. Cumulative 6-month roadmap.
+8. Cumulative 12-month roadmap.
+9. Dependencies and required decisions from CareRx/DBA/operations/QA/vendors.
+10. Business-ordering and patient-safety guardrails.
+11. Architecture option/antipattern comparison.
+12. Runtime measurement plan.
+13. Test and rollback plan.
+14. Areas not to change.
+15. Mermaid diagrams for current hotspots, claim sequencing, and the incremental 12-month target.
+
+Finish with three explicit decisions:
+
+- What can start immediately?
+- What needs measurement or a business-rule decision first?
+- What should not be attempted by this two-developer team in the next 12 months?
+
+Do not write a generic modernization roadmap. Every scheduled item must link to a specific finding, evidence, validation test, and measurable outcome.
