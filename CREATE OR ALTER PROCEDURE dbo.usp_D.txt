@@ -1,0 +1,237 @@
+CREATE OR ALTER PROCEDURE dbo.usp_DetectLongRunningXpCmdShell
+(
+      @MinimumRuntimeMinutes       INT = 240
+    , @RequireOpenTransaction      BIT = 1
+    , @RequireBlocking             BIT = 0
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @DetectedAt DATETIME2(0) = SYSDATETIME();
+
+    ;WITH ActiveRequests AS
+    (
+        SELECT
+              r.session_id
+            , r.request_id
+            , r.start_time
+            , r.status
+            , r.command
+            , r.wait_type
+            , r.wait_time
+            , r.wait_resource
+
+            , r.blocking_session_id
+
+            , s.login_name
+            , s.host_name
+            , s.program_name
+
+            , DB_NAME(r.database_id) AS DatabaseName
+
+            , DATEDIFF
+              (
+                  MINUTE,
+                  r.start_time,
+                  @DetectedAt
+              ) AS RuntimeMinutes
+
+            , s.open_transaction_count
+
+            , txt.text AS SqlText
+
+        FROM sys.dm_exec_requests AS r
+
+        INNER JOIN sys.dm_exec_sessions AS s
+            ON r.session_id = s.session_id
+
+        OUTER APPLY
+            sys.dm_exec_sql_text(r.sql_handle) AS txt
+
+        WHERE
+            r.session_id <> @@SPID
+            AND s.is_user_process = 1
+    ),
+
+    BlockingInfo AS
+    (
+        SELECT
+              blocking_session_id AS session_id
+            , COUNT(*) AS BlockedSessionCount
+
+        FROM sys.dm_exec_requests
+
+        WHERE
+            blocking_session_id > 0
+
+        GROUP BY
+            blocking_session_id
+    ),
+
+    Candidates AS
+    (
+        SELECT
+              ar.session_id
+            , ar.request_id
+            , ar.start_time
+            , ar.RuntimeMinutes
+
+            , ar.status
+            , ar.command
+            , ar.wait_type
+            , ar.wait_time
+            , ar.wait_resource
+
+            , ar.DatabaseName
+            , ar.login_name
+            , ar.host_name
+            , ar.program_name
+
+            , ar.open_transaction_count
+
+            , ISNULL
+              (
+                  bi.BlockedSessionCount,
+                  0
+              ) AS BlockedSessionCount
+
+            , ar.SqlText
+
+        FROM ActiveRequests AS ar
+
+        LEFT JOIN BlockingInfo AS bi
+            ON ar.session_id = bi.session_id
+
+        WHERE
+            ar.RuntimeMinutes >= @MinimumRuntimeMinutes
+
+            /*
+              Detect xp_cmdshell-related execution.
+              We deliberately use more than one indicator.
+            */
+            AND
+            (
+                   ar.SqlText LIKE '%xp_cmdshell%'
+                OR ar.wait_type LIKE '%PIPE%'
+                OR ar.wait_type LIKE 'PREEMPTIVE_OS_%'
+            )
+
+            /*
+              Require open transaction if configured.
+            */
+            AND
+            (
+                   @RequireOpenTransaction = 0
+                OR ar.open_transaction_count > 0
+            )
+
+            /*
+              Require this session to be blocking somebody
+              if configured.
+            */
+            AND
+            (
+                   @RequireBlocking = 0
+                OR ISNULL(bi.BlockedSessionCount, 0) > 0
+            )
+    )
+
+    INSERT INTO dbo.XpCmdShellTerminationCandidate
+    (
+          SessionId
+        , RequestId
+        , DetectedAt
+        , StartTime
+        , RuntimeMinutes
+
+        , DatabaseName
+        , LoginName
+        , HostName
+        , ProgramName
+
+        , SqlStatus
+        , SqlCommand
+
+        , WaitType
+        , WaitTimeMs
+        , WaitResource
+
+        , OpenTransactionCount
+        , BlockedSessionCount
+
+        , CommandText
+
+        , Status
+    )
+    SELECT
+          c.session_id
+        , c.request_id
+        , @DetectedAt
+        , c.start_time
+        , c.RuntimeMinutes
+
+        , c.DatabaseName
+        , c.login_name
+        , c.host_name
+        , c.program_name
+
+        , c.status
+        , c.command
+
+        , c.wait_type
+        , c.wait_time
+        , c.wait_resource
+
+        , c.open_transaction_count
+        , c.BlockedSessionCount
+
+        , c.SqlText
+
+        , 'PendingValidation'
+
+    FROM Candidates AS c
+
+    WHERE NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.XpCmdShellTerminationCandidate AS existing
+        WHERE
+            existing.SessionId = c.session_id
+
+            AND existing.Status IN
+            (
+                  'PendingValidation'
+                , 'Validated'
+                , 'TerminationRequested'
+            )
+    );
+
+
+    /*
+      Return what was detected during this execution.
+      Useful for SQL Agent history / troubleshooting.
+    */
+
+    SELECT
+          CandidateId
+        , SessionId
+        , RuntimeMinutes
+        , DatabaseName
+        , LoginName
+        , WaitType
+        , OpenTransactionCount
+        , BlockedSessionCount
+        , Status
+        , CommandText
+
+    FROM dbo.XpCmdShellTerminationCandidate
+
+    WHERE
+        DetectedAt = @DetectedAt
+
+    ORDER BY
+        RuntimeMinutes DESC;
+END;
+GO
