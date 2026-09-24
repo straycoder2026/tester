@@ -1,0 +1,101 @@
+Investigate and Implement Safe Termination of Blocking xp_cmdshell Processes
+
+
+
+
+Description
+
+Implement a safe mechanism to identify and terminate cmd.exe processes spawned by xp_cmdshell that cause SQL Server blocking sessions and performance degradation, without affecting valid or active command executions.
+
+Background
+Several SQL Stores have experienced performance issues caused by blocking sessions within SQL Server.
+
+Investigation identified that some blocking chains originate from xp_cmdshell executions launched by:
+
+SQL Event Jobs
+
+nightly_maintenance jobs
+
+Stored procedures dependent on xp_cmdshell
+
+In certain scenarios, the spawned cmd.exe process becomes stuck or runs longer than expected, causing SQL sessions to remain blocked and negatively impacting database performance.
+
+Currently, there is no automated mechanism to safely identify and terminate only the problematic cmd.exe processes while preserving legitimate executions.
+
+Problem Statement
+When xp_cmdshell launches a Windows command process (cmd.exe), the process may occasionally:
+
+Remain active longer than expected
+
+Create blocking sessions within SQL Server
+
+Cause downstream workload delays
+
+Impact Store database performance
+
+A controlled solution is required to detect and terminate only those cmd.exe processes directly responsible for blocking SQL activity.
+
+Requirements
+Investigation
+Determine:
+
+How to reliably identify blocking sessions caused by xp_cmdshell.
+
+How to correlate the blocking SQL session to the underlying Windows cmd.exe process.
+
+Whether process metadata can be captured at runtime, including:
+
+SQL Agent Job Name
+
+Stored Procedure Name
+
+Start Time
+
+Session ID (SPID)
+
+Blocking Duration
+
+Process ID (PID)
+
+Solution Design
+Design and implement an automated monitoring job that:
+
+Periodically detects blocking sessions associated with xp_cmdshell.
+
+Validates that the session exceeds the thresholds.
+
+Verifies that the associated process is orphaned, hung, or executing abnormally.
+
+Safely terminates only the affected cmd.exe process.
+
+Logs all actions for audit and troubleshooting purposes.
+
+Safeguards
+The solution must:
+
+Not terminate active or healthy cmd.exe executions.
+
+Not impact legitimate maintenance operations.
+
+Generate logging before/after process termination.
+
+Acceptance Criteria
+Blocking sessions originating from xp_cmdshell can be detected automatically.
+
+Associated Windows process can be identified reliably.
+
+Only validated blocking/hung cmd.exe processes are terminated.
+
+Valid cmd.exe executions remain unaffected.
+
+All actions are logged.
+
+Solution is tested against:
+
+SQL Event Jobs
+
+nightly_maintenance
+
+Other procedures utilizing xp_cmdshell
+
+Performance impact of monitoring job is minimal.
