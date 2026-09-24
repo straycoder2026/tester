@@ -105,6 +105,39 @@ BEGIN
 END;
 GO
 
+CREATE OR ALTER PROCEDURE xt.usp_BeginExecution
+    @ExecutionId          uniqueidentifier,
+    @RegistrationToken    varbinary(32),
+    @InstanceName         sysname,
+    @DatabaseName         sysname,
+    @SessionId            smallint,
+    @ProfileId            sysname,
+    @ArgumentsHash        binary(32),
+    @CallerLogin          sysname,
+    @CallerHost           nvarchar(128),
+    @CallerProgram        nvarchar(128)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF @ExecutionId IS NULL OR @SessionId <= 0 OR DATALENGTH(@RegistrationToken) <> 32
+        THROW 51018, 'Invalid execution registration request.', 1;
+
+    IF NOT EXISTS (SELECT 1 FROM xt.CommandProfile WHERE ProfileId = @ProfileId AND Enabled = 1)
+        THROW 51019, 'Execution profile is not enabled.', 1;
+
+    INSERT xt.ExecutionRegistry
+        (ExecutionId, InstanceName, DatabaseName, SessionId, RequestId, ProfileId,
+         ArgumentsHash, RegistrationHash, RequestedUtc, State,
+         CallerLogin, CallerHost, CallerProgram)
+    VALUES
+        (@ExecutionId, @InstanceName, @DatabaseName, @SessionId, NULL, @ProfileId,
+         @ArgumentsHash, HASHBYTES('SHA2_256', @RegistrationToken), SYSUTCDATETIME(), 'Pending',
+         @CallerLogin, NULLIF(@CallerHost, N'(unknown)'), NULLIF(@CallerProgram, N'(unknown)'));
+END;
+GO
+
 CREATE OR ALTER PROCEDURE xt.usp_RegisterProcess
     @ExecutionId       uniqueidentifier,
     @RegistrationToken varbinary(32),
@@ -257,34 +290,19 @@ BEGIN
     DECLARE @RegistrationToken varbinary(32) = CRYPT_GEN_RANDOM(32);
     SET @ExecutionId = NEWID();
 
-    INSERT xt.ExecutionRegistry
-        (ExecutionId, InstanceName, DatabaseName, SessionId, RequestId, ProfileId,
-         ArgumentsHash, RegistrationHash, RequestedUtc, State,
-         CallerLogin, CallerHost, CallerProgram)
-    SELECT
-        @ExecutionId,
-        CAST(SERVERPROPERTY('ServerName') AS sysname),
-        DB_NAME(),
-        @@SPID,
-        r.request_id,
-        @ProfileId,
-        HASHBYTES('SHA2_256', CONVERT(varbinary(max), @Payload)),
-        HASHBYTES('SHA2_256', @RegistrationToken),
-        SYSUTCDATETIME(),
-        'Pending',
-        ORIGINAL_LOGIN(),
-        HOST_NAME(),
-        PROGRAM_NAME()
-    FROM (SELECT 1 AS n) AS seed
-    LEFT JOIN sys.dm_exec_requests AS r ON r.session_id = @@SPID;
-
     DECLARE
         @ServerBytes varbinary(max) = CONVERT(varbinary(max), CONVERT(nvarchar(256), SERVERPROPERTY('ServerName'))),
         @DatabaseBytes varbinary(max) = CONVERT(varbinary(max), CONVERT(nvarchar(256), DB_NAME())),
         @PayloadBytes varbinary(max) = CONVERT(varbinary(max), @Payload),
+        @CallerLoginBytes varbinary(max) = CONVERT(varbinary(max), CONVERT(nvarchar(256), ORIGINAL_LOGIN())),
+        @CallerHostBytes varbinary(max) = CONVERT(varbinary(max), CONVERT(nvarchar(256), COALESCE(NULLIF(HOST_NAME(), N''), N'(unknown)'))),
+        @CallerProgramBytes varbinary(max) = CONVERT(varbinary(max), CONVERT(nvarchar(256), COALESCE(NULLIF(PROGRAM_NAME(), N''), N'(unknown)'))),
         @ServerB64 varchar(max),
         @DatabaseB64 varchar(max),
         @PayloadB64 varchar(max),
+        @CallerLoginB64 varchar(max),
+        @CallerHostB64 varchar(max),
+        @CallerProgramB64 varchar(max),
         @TokenB64 varchar(64),
         @Invocation varchar(8000),
         @ReturnCode int;
@@ -293,15 +311,22 @@ BEGIN
         @ServerB64 = CAST(N'' AS xml).value('xs:base64Binary(sql:variable("@ServerBytes"))', 'varchar(max)'),
         @DatabaseB64 = CAST(N'' AS xml).value('xs:base64Binary(sql:variable("@DatabaseBytes"))', 'varchar(max)'),
         @PayloadB64 = CAST(N'' AS xml).value('xs:base64Binary(sql:variable("@PayloadBytes"))', 'varchar(max)'),
+        @CallerLoginB64 = CAST(N'' AS xml).value('xs:base64Binary(sql:variable("@CallerLoginBytes"))', 'varchar(max)'),
+        @CallerHostB64 = CAST(N'' AS xml).value('xs:base64Binary(sql:variable("@CallerHostBytes"))', 'varchar(max)'),
+        @CallerProgramB64 = CAST(N'' AS xml).value('xs:base64Binary(sql:variable("@CallerProgramBytes"))', 'varchar(max)'),
         @TokenB64 = CAST(N'' AS xml).value('xs:base64Binary(sql:variable("@RegistrationToken"))', 'varchar(64)');
 
     SET @Invocation = CONVERT(varchar(8000),
-        N'powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy AllSigned -File ' + @LauncherPath +
+        N'powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ' + @LauncherPath +
         N' -ExecutionId ' + CONVERT(nvarchar(36), @ExecutionId) +
         N' -ProfileId ' + @ProfileId +
+        N' -SessionId ' + CONVERT(nvarchar(10), @@SPID) +
         N' -ServerB64 ' + @ServerB64 +
         N' -DatabaseB64 ' + @DatabaseB64 +
         N' -PayloadB64 ' + @PayloadB64 +
+        N' -CallerLoginB64 ' + @CallerLoginB64 +
+        N' -CallerHostB64 ' + @CallerHostB64 +
+        N' -CallerProgramB64 ' + @CallerProgramB64 +
         N' -RegistrationTokenB64 ' + @TokenB64 +
         N' -ProfilePath ' + @ProfilePath);
 
@@ -348,6 +373,7 @@ GO
   Grant them only to the Windows login used by the launcher, for example:
 
   CREATE USER [DOMAIN\SqlService] FOR LOGIN [DOMAIN\SqlService];
+  GRANT EXECUTE ON xt.usp_BeginExecution TO [DOMAIN\SqlService];
   GRANT EXECUTE ON xt.usp_RegisterProcess TO [DOMAIN\SqlService];
   GRANT EXECUTE ON xt.usp_HeartbeatExecution TO [DOMAIN\SqlService];
   GRANT EXECUTE ON xt.usp_CompleteExecution TO [DOMAIN\SqlService];

@@ -3,9 +3,13 @@
 param(
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-fA-F-]{36}$')][string]$ExecutionId,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9_.-]{1,128}$')][string]$ProfileId,
+    [Parameter(Mandatory = $true)][ValidateRange(1, 32767)][int]$SessionId,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$ServerB64,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$DatabaseB64,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$PayloadB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$CallerLoginB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$CallerHostB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$CallerProgramB64,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$RegistrationTokenB64,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z]:\\[^\r\n]+\.json$')][string]$ProfilePath
 )
@@ -15,6 +19,7 @@ $ErrorActionPreference = 'Stop'
 $script:LauncherVersion = '1.0.0'
 $script:ProcessId = $null
 $script:RegistrationToken = [Convert]::FromBase64String($RegistrationTokenB64)
+$script:ExecutionBegun = $false
 
 function ConvertFrom-UnicodeBase64 {
     param([Parameter(Mandatory = $true)][string]$Value)
@@ -152,6 +157,9 @@ try {
     $server = ConvertFrom-UnicodeBase64 $ServerB64
     $database = ConvertFrom-UnicodeBase64 $DatabaseB64
     $payloadText = ConvertFrom-UnicodeBase64 $PayloadB64
+    $callerLogin = ConvertFrom-UnicodeBase64 $CallerLoginB64
+    $callerHost = ConvertFrom-UnicodeBase64 $CallerHostB64
+    $callerProgram = ConvertFrom-UnicodeBase64 $CallerProgramB64
     $payload = $payloadText | ConvertFrom-Json
 
     if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) { throw 'Profile configuration file does not exist.' }
@@ -212,6 +220,23 @@ try {
     $canonicalCommand = $executable + [char]0 + (($allArguments | ConvertTo-Json -Compress)) + [char]0 + $workingDirectory
     $commandHash = Get-Sha256Bytes ([Text.Encoding]::UTF8.GetBytes($canonicalCommand))
 
+    # Use this independent SQL connection so registration commits even when
+    # the calling SPID is holding an application transaction open.
+    $argumentsHash = Get-Sha256Bytes ([Text.Encoding]::Unicode.GetBytes($payloadText))
+    Invoke-SqlProcedure -Server $server -Database $database -Procedure 'xt.usp_BeginExecution' -Parameters @{
+        '@ExecutionId' = [Guid]$ExecutionId
+        '@RegistrationToken' = $script:RegistrationToken
+        '@InstanceName' = $server
+        '@DatabaseName' = $database
+        '@SessionId' = $SessionId
+        '@ProfileId' = $ProfileId
+        '@ArgumentsHash' = $argumentsHash
+        '@CallerLogin' = $callerLogin
+        '@CallerHost' = $callerHost
+        '@CallerProgram' = $callerProgram
+    }
+    $script:ExecutionBegun = $true
+
     $startInfo = New-Object Diagnostics.ProcessStartInfo
     $startInfo.FileName = $executable
     $startInfo.Arguments = $argumentLine
@@ -269,7 +294,7 @@ try {
 }
 catch {
     $message = $_.Exception.Message
-    if ($null -ne $server -and $null -ne $database) {
+    if ($script:ExecutionBegun -and $null -ne $server -and $null -ne $database) {
         $state = if ($null -eq $script:ProcessId) { 'LaunchRejected' } else { 'Failed' }
         Complete-ExecutionSafely -Server $server -Database $database -State $state -ExitCode $null -ErrorNumber 51041 -ErrorMessage $message
     }
@@ -279,4 +304,3 @@ catch {
 finally {
     if ($null -ne $script:RegistrationToken) { [Array]::Clear($script:RegistrationToken, 0, $script:RegistrationToken.Length) }
 }
-
