@@ -1,0 +1,282 @@
+#requires -version 5.1
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-fA-F-]{36}$')][string]$ExecutionId,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9_.-]{1,128}$')][string]$ProfileId,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$ServerB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$DatabaseB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$PayloadB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$RegistrationTokenB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z]:\\[^\r\n]+\.json$')][string]$ProfilePath
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$script:LauncherVersion = '1.0.0'
+$script:ProcessId = $null
+$script:RegistrationToken = [Convert]::FromBase64String($RegistrationTokenB64)
+
+function ConvertFrom-UnicodeBase64 {
+    param([Parameter(Mandatory = $true)][string]$Value)
+    return [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($Value))
+}
+
+function Invoke-SqlProcedure {
+    param(
+        [Parameter(Mandatory = $true)][string]$Server,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][string]$Procedure,
+        [Parameter(Mandatory = $true)][hashtable]$Parameters
+    )
+
+    $connectionString = "Server=$Server;Database=$Database;Integrated Security=SSPI;Encrypt=True;TrustServerCertificate=True;Application Name=SqlXpcmdRegisteredLauncher;Connect Timeout=15"
+    $connection = New-Object System.Data.SqlClient.SqlConnection $connectionString
+    try {
+        $connection.Open()
+        $command = $connection.CreateCommand()
+        $command.CommandType = [System.Data.CommandType]::StoredProcedure
+        $command.CommandText = $Procedure
+        $command.CommandTimeout = 30
+        foreach ($name in $Parameters.Keys) {
+            $value = $Parameters[$name]
+            if ($null -eq $value) { $value = [DBNull]::Value }
+            [void]$command.Parameters.AddWithValue($name, $value)
+        }
+        [void]$command.ExecuteNonQuery()
+    }
+    finally {
+        if ($null -ne $connection) { $connection.Dispose() }
+    }
+}
+
+function Get-CanonicalPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    return [IO.Path]::GetFullPath($Path).TrimEnd('\')
+}
+
+function Test-PathUnderRoot {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string[]]$Roots
+    )
+    $candidate = (Get-CanonicalPath $Path) + '\'
+    foreach ($root in $Roots) {
+        $canonicalRoot = (Get-CanonicalPath $root) + '\'
+        if ($candidate.StartsWith($canonicalRoot, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+    }
+    return $false
+}
+
+function ConvertTo-WindowsCommandLineArgument {
+    param([AllowEmptyString()][string]$Value)
+    if ($Value -notmatch '[\s"]') { return $Value }
+    # Implements the CommandLineToArgvW escaping convention.
+    $builder = New-Object Text.StringBuilder
+    [void]$builder.Append('"')
+    $backslashes = 0
+    foreach ($character in $Value.ToCharArray()) {
+        if ($character -eq '\') {
+            $backslashes++
+            continue
+        }
+        if ($character -eq '"') {
+            [void]$builder.Append(('\' * (($backslashes * 2) + 1)))
+            [void]$builder.Append('"')
+            $backslashes = 0
+            continue
+        }
+        if ($backslashes -gt 0) {
+            [void]$builder.Append(('\' * $backslashes))
+            $backslashes = 0
+        }
+        [void]$builder.Append($character)
+    }
+    if ($backslashes -gt 0) { [void]$builder.Append(('\' * ($backslashes * 2))) }
+    [void]$builder.Append('"')
+    return $builder.ToString()
+}
+
+function Get-OwnerSid {
+    param([Parameter(Mandatory = $true)][int]$Id)
+    $escaped = $Id.ToString([Globalization.CultureInfo]::InvariantCulture)
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $escaped"
+    if ($null -eq $process) { throw "Process $Id could not be queried after launch." }
+    $owner = Invoke-CimMethod -InputObject $process -MethodName GetOwner
+    if ($owner.ReturnValue -ne 0) { throw "Owner lookup for process $Id failed with code $($owner.ReturnValue)." }
+    $account = New-Object Security.Principal.NTAccount($owner.Domain, $owner.User)
+    return $account.Translate([Security.Principal.SecurityIdentifier]).Value
+}
+
+function Get-ParentProcessId {
+    param([Parameter(Mandatory = $true)][int]$Id)
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $Id"
+    if ($null -eq $process) { throw "Process $Id could not be queried after launch." }
+    return [int]$process.ParentProcessId
+}
+
+function Get-Sha256Bytes {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return $sha.ComputeHash($Bytes) } finally { $sha.Dispose() }
+}
+
+function Complete-ExecutionSafely {
+    param(
+        [string]$Server,
+        [string]$Database,
+        [string]$State,
+        [Nullable[int]]$ExitCode,
+        [Nullable[int]]$ErrorNumber,
+        [string]$ErrorMessage
+    )
+    try {
+        $parameters = @{
+            '@ExecutionId' = [Guid]$ExecutionId
+            '@RegistrationToken' = $script:RegistrationToken
+            '@ProcessId' = $script:ProcessId
+            '@State' = $State
+            '@ExitCode' = $ExitCode
+            '@ErrorNumber' = $ErrorNumber
+            '@ErrorMessage' = $ErrorMessage
+        }
+        Invoke-SqlProcedure -Server $Server -Database $Database -Procedure 'xt.usp_CompleteExecution' -Parameters $parameters
+    }
+    catch {
+        [Console]::Error.WriteLine("Registry completion failed for execution ${ExecutionId}: $($_.Exception.Message)")
+    }
+}
+
+$server = $null
+$database = $null
+try {
+    $server = ConvertFrom-UnicodeBase64 $ServerB64
+    $database = ConvertFrom-UnicodeBase64 $DatabaseB64
+    $payloadText = ConvertFrom-UnicodeBase64 $PayloadB64
+    $payload = $payloadText | ConvertFrom-Json
+
+    if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) { throw 'Profile configuration file does not exist.' }
+    $profileDocument = Get-Content -LiteralPath $ProfilePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($profileDocument.schemaVersion -ne 1) { throw 'Unsupported profile schema version.' }
+    $profiles = @($profileDocument.profiles | Where-Object { $_.id -ceq $ProfileId })
+    if ($profiles.Count -ne 1) { throw 'Profile was not found or is duplicated.' }
+    $profile = $profiles[0]
+    if ($profile.enabled -ne $true) { throw 'Profile is disabled.' }
+
+    $executable = Get-CanonicalPath ([string]$profile.executable)
+    if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Configured executable does not exist.' }
+    $leaf = [IO.Path]::GetFileName($executable).ToLowerInvariant()
+    $blockedInterpreters = @('cmd.exe','powershell.exe','pwsh.exe','wscript.exe','cscript.exe','mshta.exe','rundll32.exe')
+    if ($blockedInterpreters -contains $leaf) { throw 'General-purpose interpreters are not allowed as profile executables.' }
+
+    $arguments = @()
+    if ($null -ne $payload.argumentsJson) {
+        $decodedArguments = ([string]$payload.argumentsJson | ConvertFrom-Json)
+        if ($null -ne $decodedArguments) { $arguments = @($decodedArguments) }
+    }
+    foreach ($item in $arguments) {
+        if ($item -isnot [string]) { throw 'Every argument must be a string.' }
+        if ($item.IndexOf([char]0) -ge 0) { throw 'Arguments cannot contain a null character.' }
+    }
+
+    $rules = @($profile.argumentRules)
+    for ($index = 0; $index -lt $arguments.Count; $index++) {
+        if ($index -ge $rules.Count) {
+            if ($profile.allowAdditionalArguments -ne $true) { throw "Argument $index is not permitted." }
+            throw 'Profiles with unconstrained additional arguments are not supported by this launcher version.'
+        }
+        $rule = $rules[$index]
+        if ($arguments[$index].Length -gt [int]$rule.maxLength) { throw "Argument $index exceeds its maximum length." }
+        $regex = New-Object Text.RegularExpressions.Regex([string]$rule.pattern, [Text.RegularExpressions.RegexOptions]::CultureInvariant, [TimeSpan]::FromMilliseconds(250))
+        if (-not $regex.IsMatch($arguments[$index])) { throw "Argument $index does not match its allowed pattern." }
+    }
+    for ($index = $arguments.Count; $index -lt $rules.Count; $index++) {
+        if ($rules[$index].required -eq $true) { throw "Required argument $index is missing." }
+    }
+
+    $workingDirectory = if ([string]::IsNullOrWhiteSpace([string]$payload.workingDirectory)) {
+        [string]$profile.defaultWorkingDirectory
+    } else {
+        [string]$payload.workingDirectory
+    }
+    $workingDirectory = Get-CanonicalPath $workingDirectory
+    if (-not (Test-Path -LiteralPath $workingDirectory -PathType Container)) { throw 'Working directory does not exist.' }
+    if (-not (Test-PathUnderRoot -Path $workingDirectory -Roots @($profile.allowedWorkingDirectoryRoots))) { throw 'Working directory is outside approved roots.' }
+
+    $maxRuntimeSeconds = [int]$profile.maxRuntimeSeconds
+    $heartbeatSeconds = [int]$profile.heartbeatSeconds
+    if ($maxRuntimeSeconds -lt 1 -or $maxRuntimeSeconds -gt 86400) { throw 'Invalid maximum runtime.' }
+    if ($heartbeatSeconds -lt 2 -or $heartbeatSeconds -gt 300) { throw 'Invalid heartbeat interval.' }
+
+    $allArguments = @($profile.fixedArguments) + $arguments
+    $argumentLine = (($allArguments | ForEach-Object { ConvertTo-WindowsCommandLineArgument ([string]$_) }) -join ' ')
+    $canonicalCommand = $executable + [char]0 + (($allArguments | ConvertTo-Json -Compress)) + [char]0 + $workingDirectory
+    $commandHash = Get-Sha256Bytes ([Text.Encoding]::UTF8.GetBytes($canonicalCommand))
+
+    $startInfo = New-Object Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $executable
+    $startInfo.Arguments = $argumentLine
+    $startInfo.WorkingDirectory = $workingDirectory
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) { throw 'Process start returned false.' }
+    $script:ProcessId = $process.Id
+
+    $creationUtc = $process.StartTime.ToUniversalTime()
+    $parentId = Get-ParentProcessId $process.Id
+    $ownerSid = Get-OwnerSid $process.Id
+
+    Invoke-SqlProcedure -Server $server -Database $database -Procedure 'xt.usp_RegisterProcess' -Parameters @{
+        '@ExecutionId' = [Guid]$ExecutionId
+        '@RegistrationToken' = $script:RegistrationToken
+        '@ProcessId' = $process.Id
+        '@ParentProcessId' = $parentId
+        '@CreationTimeUtc' = $creationUtc
+        '@ImagePath' = $executable
+        '@OwnerSid' = $ownerSid
+        '@CommandHash' = $commandHash
+        '@LauncherVersion' = $script:LauncherVersion
+    }
+
+    $started = [DateTime]::UtcNow
+    $timedOut = $false
+    while (-not $process.WaitForExit($heartbeatSeconds * 1000)) {
+        if (([DateTime]::UtcNow - $started).TotalSeconds -ge $maxRuntimeSeconds) {
+            $timedOut = $true
+            break
+        }
+        Invoke-SqlProcedure -Server $server -Database $database -Procedure 'xt.usp_HeartbeatExecution' -Parameters @{
+            '@ExecutionId' = [Guid]$ExecutionId
+            '@RegistrationToken' = $script:RegistrationToken
+            '@ProcessId' = $process.Id
+        }
+    }
+
+    if ($timedOut) {
+        # The wrapper records the timeout but deliberately does not kill the child.
+        # Termination belongs to the separately reviewed safe-termination helper.
+        Complete-ExecutionSafely -Server $server -Database $database -State 'TimedOut' -ExitCode $null -ErrorNumber 51040 -ErrorMessage 'Profile maximum runtime was exceeded; process was not terminated by the launcher.'
+        exit 124
+    }
+
+    $exitCode = $process.ExitCode
+    $state = if ($exitCode -eq 0) { 'Succeeded' } else { 'Failed' }
+    Complete-ExecutionSafely -Server $server -Database $database -State $state -ExitCode $exitCode -ErrorNumber $null -ErrorMessage $null
+    if ($exitCode -ge 0 -and $exitCode -le 255) { exit $exitCode }
+    exit 1
+}
+catch {
+    $message = $_.Exception.Message
+    if ($null -ne $server -and $null -ne $database) {
+        $state = if ($null -eq $script:ProcessId) { 'LaunchRejected' } else { 'Failed' }
+        Complete-ExecutionSafely -Server $server -Database $database -State $state -ExitCode $null -ErrorNumber 51041 -ErrorMessage $message
+    }
+    [Console]::Error.WriteLine("Registered command ${ExecutionId} failed: $message")
+    exit 1
+}
+finally {
+    if ($null -ne $script:RegistrationToken) { [Array]::Clear($script:RegistrationToken, 0, $script:RegistrationToken.Length) }
+}
+
