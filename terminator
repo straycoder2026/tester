@@ -1,0 +1,130 @@
+$SqlServer = "localhost"
+$Database  = "YourDatabaseName"
+
+$query = @"
+SELECT TOP (1)
+    CandidateId,
+    SessionId,
+    CommandText
+FROM dbo.XpCmdShellTerminationCandidate
+WHERE Status = 'PendingValidation'
+ORDER BY CandidateId;
+"@
+
+$candidate = Invoke-Sqlcmd `
+    -ServerInstance $SqlServer `
+    -Database $Database `
+    -Query $query
+
+if (-not $candidate) {
+    Write-Host "No pending candidates."
+    exit 0
+}
+
+Write-Host "Candidate found"
+Write-Host "CandidateId: $($candidate.CandidateId)"
+Write-Host "SQL SPID:    $($candidate.SessionId)"
+Write-Host "Command:     $($candidate.CommandText)"
+
+$matches = Get-CimInstance Win32_Process |
+    Where-Object {
+        $_.Name -eq "ping.exe" -and
+        $_.CommandLine -like "*127.0.0.1*" -and
+        $_.CommandLine -like "*-t*"
+    }
+
+if (@($matches).Count -ne 1) {
+
+    $message = "Validation failed. Matching ping processes found: $(@($matches).Count)"
+    $escaped = $message.Replace("'", "''")
+
+    Invoke-Sqlcmd `
+        -ServerInstance $SqlServer `
+        -Database $Database `
+        -Query @"
+UPDATE dbo.XpCmdShellTerminationCandidate
+SET
+    Status = 'ValidationFailed',
+    ResultMessage = '$escaped'
+WHERE CandidateId = $($candidate.CandidateId);
+"@
+
+    Write-Host $message
+    exit 1
+}
+
+$target = $matches | Select-Object -First 1
+
+$pid = [int]$target.ProcessId
+
+Write-Host "Validated target:"
+Write-Host "PID:        $pid"
+Write-Host "Parent PID: $($target.ParentProcessId)"
+Write-Host "Command:    $($target.CommandLine)"
+
+Invoke-Sqlcmd `
+    -ServerInstance $SqlServer `
+    -Database $Database `
+    -Query @"
+UPDATE dbo.XpCmdShellTerminationCandidate
+SET
+    ProcessId       = $pid,
+    ParentProcessId = $($target.ParentProcessId),
+    ProcessName     = 'ping.exe',
+    Status          = 'Validated'
+WHERE CandidateId = $($candidate.CandidateId);
+"@
+
+try {
+
+    Stop-Process `
+        -Id $pid `
+        -Force `
+        -ErrorAction Stop
+
+    Start-Sleep -Seconds 2
+
+    $stillRunning =
+        Get-Process `
+            -Id $pid `
+            -ErrorAction SilentlyContinue
+
+    if ($stillRunning) {
+        throw "PID $pid is still running."
+    }
+
+    $message = "Process PID $pid terminated successfully."
+    $escaped = $message.Replace("'", "''")
+
+    Invoke-Sqlcmd `
+        -ServerInstance $SqlServer `
+        -Database $Database `
+        -Query @"
+UPDATE dbo.XpCmdShellTerminationCandidate
+SET
+    Status         = 'Terminated',
+    TerminatedAt   = SYSDATETIME(),
+    ResultMessage  = '$escaped'
+WHERE CandidateId = $($candidate.CandidateId);
+"@
+
+    Write-Host $message
+}
+catch {
+
+    $message = $_.Exception.Message
+    $escaped = $message.Replace("'", "''")
+
+    Invoke-Sqlcmd `
+        -ServerInstance $SqlServer `
+        -Database $Database `
+        -Query @"
+UPDATE dbo.XpCmdShellTerminationCandidate
+SET
+    Status        = 'TerminationFailed',
+    ResultMessage = '$escaped'
+WHERE CandidateId = $($candidate.CandidateId);
+"@
+
+    Write-Host "Termination failed: $message"
+}
