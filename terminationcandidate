@@ -1,0 +1,43 @@
+USE YourDatabaseName;
+GO
+
+IF OBJECT_ID('dbo.XpCmdShellTerminationCandidate', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.XpCmdShellTerminationCandidate
+    (
+          CandidateId               BIGINT IDENTITY(1,1) PRIMARY KEY
+        , SessionId                 INT NOT NULL
+        , RequestId                 INT NULL
+        , DetectedAt                DATETIME2(0) NOT NULL
+        , StartTime                 DATETIME2(0) NULL
+        , RuntimeMinutes            INT NULL
+
+        , DatabaseName              SYSNAME NULL
+        , LoginName                 SYSNAME NULL
+        , HostName                  NVARCHAR(128) NULL
+        , ProgramName               NVARCHAR(128) NULL
+
+        , SqlStatus                 NVARCHAR(60) NULL
+        , SqlCommand                NVARCHAR(60) NULL
+
+        , WaitType                  NVARCHAR(120) NULL
+        , WaitTimeMs                INT NULL
+        , WaitResource              NVARCHAR(256) NULL
+
+        , OpenTransactionCount      INT NULL
+        , BlockedSessionCount       INT NULL
+
+        , CommandText               NVARCHAR(MAX) NULL
+
+        , ProcessId                 INT NULL
+        , ParentProcessId           INT NULL
+        , ProcessName               NVARCHAR(128) NULL
+        , ProcessStartTime          DATETIME2(0) NULL
+        , WindowsAccount            NVARCHAR(256) NULL
+
+        , Status                    VARCHAR(50) NOT NULL
+        , TerminatedAt              DATETIME2(0) NULL
+        , ResultMessage             NVARCHAR(2000) NULL
+    );
+END;
+GO
