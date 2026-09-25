@@ -1,1 +1,7 @@
 powershell.exe  -NoProfile -ExecutionPolicy Bypass -File "c:\sqlxpcmd\terminator.ps1"  -SqlServer  "A5CD349L23V\propelrx"  -Database "Nexxsys"
+
+
+Invoke-Sqlcmd -ServerInstance "A5CD349L23V\PROPELRX" -Database "Nexxsys" -Query "SELECT @@SERVERNAME AS ServerName, DB_NAME() AS DatabaseName"
+
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\sqlxpcmd\terminator.ps1" -SqlServer "A5CD349L23V\PROPELRX" -Database "Nexxsys"
