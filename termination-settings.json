@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "enabled": false,
+  "simulationOnly": true,
+  "allowedExecutableRoots": [],
+  "allowedOwnerSids": [],
+  "allowForcedTermination": false
+}

@@ -317,7 +317,7 @@ BEGIN
         @TokenB64 = CAST(N'' AS xml).value('xs:base64Binary(sql:variable("@RegistrationToken"))', 'varchar(64)');
 
     SET @Invocation = CONVERT(varchar(8000),
-        N'powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ' + @LauncherPath +
+        N'powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy AllSigned -File ' + @LauncherPath +
         N' -ExecutionId ' + CONVERT(nvarchar(36), @ExecutionId) +
         N' -ProfileId ' + @ProfileId +
         N' -SessionId ' + CONVERT(nvarchar(10), @@SPID) +

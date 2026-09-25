@@ -1,0 +1,168 @@
+#requires -version 5.1
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-fA-F-]{36}$')][string]$ActionId,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$ServerB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$DatabaseB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9+/=]+$')][string]$ActionTokenB64,
+    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z]:\\[^\r\n]+\.json$')][string]$SettingsPath
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$helperVersion = '1.0.0'
+$token = [Convert]::FromBase64String($ActionTokenB64)
+$server = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($ServerB64))
+$database = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($DatabaseB64))
+$claimed = $false
+
+function New-SqlConnection {
+    $connectionString = "Server=$server;Database=$database;Integrated Security=SSPI;Encrypt=True;TrustServerCertificate=True;Application Name=SqlXpcmdTerminationHelper;Connect Timeout=15"
+    return New-Object System.Data.SqlClient.SqlConnection $connectionString
+}
+
+function Claim-Action {
+    $connection = New-SqlConnection
+    try {
+        $connection.Open()
+        $command = $connection.CreateCommand()
+        $command.CommandType = [System.Data.CommandType]::StoredProcedure
+        $command.CommandText = 'xt.usp_ClaimTerminationAction'
+        [void]$command.Parameters.AddWithValue('@ActionId', [Guid]$ActionId)
+        [void]$command.Parameters.AddWithValue('@ActionToken', $token)
+        $table = New-Object System.Data.DataTable
+        $reader = $command.ExecuteReader()
+        $table.Load($reader)
+        if ($table.Rows.Count -ne 1) { throw 'Action claim did not return exactly one row.' }
+        return $table.Rows[0]
+    }
+    finally { $connection.Dispose() }
+}
+
+function Record-Result {
+    param([string]$Status, [bool]$Graceful, [bool]$Forced, [string]$Code, [string]$Message)
+    $connection = New-SqlConnection
+    try {
+        $connection.Open()
+        $command = $connection.CreateCommand()
+        $command.CommandType = [System.Data.CommandType]::StoredProcedure
+        $command.CommandText = 'xt.usp_RecordTerminationResult'
+        [void]$command.Parameters.AddWithValue('@ActionId', [Guid]$ActionId)
+        [void]$command.Parameters.AddWithValue('@ActionToken', $token)
+        [void]$command.Parameters.AddWithValue('@Status', $Status)
+        [void]$command.Parameters.AddWithValue('@GracefulAttempted', $Graceful)
+        [void]$command.Parameters.AddWithValue('@ForcedAttempted', $Forced)
+        [void]$command.Parameters.AddWithValue('@ResultCode', $Code)
+        [void]$command.Parameters.AddWithValue('@ResultMessage', $Message)
+        [void]$command.Parameters.AddWithValue('@HelperVersion', $helperVersion)
+        [void]$command.ExecuteNonQuery()
+    }
+    finally { $connection.Dispose() }
+}
+
+function Get-CanonicalPath([string]$Path) {
+    return [IO.Path]::GetFullPath($Path).TrimEnd('\')
+}
+
+function Test-PathUnderRoot([string]$Path, [string[]]$Roots) {
+    $candidate = (Get-CanonicalPath $Path) + '\'
+    foreach ($root in $Roots) {
+        if ($candidate.StartsWith((Get-CanonicalPath $root) + '\', [StringComparison]::OrdinalIgnoreCase)) { return $true }
+    }
+    return $false
+}
+
+function Get-LiveIdentity([int]$ProcessId) {
+    $cim = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId"
+    if ($null -eq $cim) { return $null }
+    $owner = Invoke-CimMethod -InputObject $cim -MethodName GetOwner
+    if ($owner.ReturnValue -ne 0) { throw "Owner query failed with code $($owner.ReturnValue)." }
+    $account = New-Object Security.Principal.NTAccount($owner.Domain, $owner.User)
+    $sid = $account.Translate([Security.Principal.SecurityIdentifier]).Value
+    $process = [Diagnostics.Process]::GetProcessById($ProcessId)
+    return [pscustomobject]@{
+        Process = $process
+        CreationTimeUtc = $process.StartTime.ToUniversalTime()
+        ImagePath = Get-CanonicalPath ([string]$cim.ExecutablePath)
+        OwnerSid = $sid
+    }
+}
+
+try {
+    if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) { throw 'Termination settings file does not exist.' }
+    $settings = Get-Content -LiteralPath $SettingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($settings.schemaVersion -ne 1) { throw 'Unsupported termination settings schema.' }
+
+    $action = Claim-Action
+    $claimed = $true
+    $pidValue = [int]$action.ProcessId
+
+    if ([string]$action.OperatingMode -ne 'Automatic' -or [bool]$action.Enabled -ne $true) {
+        Record-Result 'Rejected' $false $false 'SqlDisabled' 'SQL termination mode is not enabled for automatic action.'
+        exit 2
+    }
+    if ($settings.enabled -ne $true) {
+        Record-Result 'Rejected' $false $false 'HelperDisabled' 'Windows termination helper is disabled.'
+        exit 2
+    }
+
+    $identity = Get-LiveIdentity $pidValue
+    if ($null -eq $identity) {
+        Record-Result 'AlreadyExited' $false $false 'NotFound' 'The registered process no longer exists.'
+        exit 0
+    }
+
+    $expectedCreation = [DateTime]::SpecifyKind([DateTime]$action.ProcessCreationTimeUtc, [DateTimeKind]::Utc)
+    if ([Math]::Abs(($identity.CreationTimeUtc - $expectedCreation).TotalMilliseconds) -gt 1000) { throw 'Process creation time does not match; possible PID reuse.' }
+    if (-not $identity.ImagePath.Equals((Get-CanonicalPath ([string]$action.ExpectedImagePath)), [StringComparison]::OrdinalIgnoreCase)) { throw 'Executable path does not match.' }
+    if (-not $identity.OwnerSid.Equals([string]$action.ExpectedOwnerSid, [StringComparison]::OrdinalIgnoreCase)) { throw 'Process owner SID does not match.' }
+    if (-not (Test-PathUnderRoot $identity.ImagePath @($settings.allowedExecutableRoots))) { throw 'Executable is outside the Windows termination allowlist.' }
+    if (@($settings.allowedOwnerSids) -notcontains $identity.OwnerSid) { throw 'Owner SID is outside the Windows termination allowlist.' }
+
+    if ($settings.simulationOnly -eq $true) {
+        Record-Result 'Simulated' $false $false 'Simulation' 'Identity checks passed; simulation mode prevented termination.'
+        exit 0
+    }
+
+    $gracefulAttempted = $true
+    $graceSeconds = [int]$action.GracefulShutdownSeconds
+    $closed = $identity.Process.CloseMainWindow()
+    if ($closed -and $identity.Process.WaitForExit($graceSeconds * 1000)) {
+        Record-Result 'GracefulExited' $true $false 'Graceful' 'The process exited after CloseMainWindow.'
+        exit 0
+    }
+
+    $forceAllowed = ([bool]$action.AllowForcedTermination) -and ([bool]$settings.allowForcedTermination)
+    if (-not $forceAllowed) {
+        Record-Result 'Rejected' $gracefulAttempted $false 'ForceDisabled' 'The process did not exit gracefully and forced termination is disabled.'
+        exit 3
+    }
+
+    # Revalidate immutable identity immediately before forced termination.
+    $identity = Get-LiveIdentity $pidValue
+    if ($null -eq $identity) {
+        Record-Result 'AlreadyExited' $gracefulAttempted $false 'ExitedBeforeForce' 'The process exited before forced termination.'
+        exit 0
+    }
+    if ([Math]::Abs(($identity.CreationTimeUtc - $expectedCreation).TotalMilliseconds) -gt 1000 -or
+        -not $identity.ImagePath.Equals((Get-CanonicalPath ([string]$action.ExpectedImagePath)), [StringComparison]::OrdinalIgnoreCase) -or
+        -not $identity.OwnerSid.Equals([string]$action.ExpectedOwnerSid, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Process identity changed before forced termination.'
+    }
+
+    $identity.Process.Kill()
+    if (-not $identity.Process.WaitForExit(10000)) { throw 'Process kill was issued but exit was not observed.' }
+    Record-Result 'Terminated' $gracefulAttempted $true 'Forced' 'The exact registered process was forcibly terminated.'
+    exit 0
+}
+catch {
+    $message = $_.Exception.Message
+    if ($claimed) {
+        try { Record-Result 'Rejected' $false $false 'IdentityOrPolicyRejected' $message } catch { [Console]::Error.WriteLine($_.Exception.Message) }
+    }
+    [Console]::Error.WriteLine("Termination action ${ActionId} failed: $message")
+    exit 1
+}
+finally {
+    if ($null -ne $token) { [Array]::Clear($token, 0, $token.Length) }
+}
