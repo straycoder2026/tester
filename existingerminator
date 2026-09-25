@@ -1,4 +1,4 @@
-<#
+ <#
 Safe xp_cmdshell terminator
 - Reads PendingValidation candidates
 - Validates SQL session and approved Windows process
