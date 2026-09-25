@@ -23,3 +23,41 @@ powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object
 
 
 powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine | Out-File 'C:\sqlxpcmd\processcheck.txt'"
+
+
+$ruleProcess  = "ping.exe"
+$ruleContains = "127.0.0.1"
+
+Get-CimInstance Win32_Process |
+Where-Object {
+    $_.Name -ieq $ruleProcess -and
+    -not [string]::IsNullOrWhiteSpace($_.CommandLine) -and
+    $_.CommandLine.IndexOf(
+        $ruleContains,
+        [System.StringComparison]::OrdinalIgnoreCase
+    ) -ge 0
+} |
+Select-Object ProcessId,ParentProcessId,Name,CreationDate,CommandLine
+
+
+
+UPDATE dbo.XpCmdShellTerminationRule
+SET
+    Enabled = 1,
+    ProcessName = 'ping.exe',
+    CommandLineContains = '127.0.0.1',
+    ModifiedDate = SYSDATETIME()
+WHERE RuleName = 'LAB-PING';
+
+
+
+
+SELECT
+    RuleName,
+    Enabled,
+    '[' + ProcessName + ']' AS ProcessName,
+    LEN(ProcessName) AS ProcessNameLength,
+    '[' + CommandLineContains + ']' AS CommandLineContains,
+    LEN(CommandLineContains) AS CommandLineLength
+FROM dbo.XpCmdShellTerminationRule
+WHERE RuleName = 'LAB-PING';
