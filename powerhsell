@@ -20,3 +20,6 @@ WHERE Enabled = 1;
 
 
 powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object {$_.Name -eq 'ping.exe'} | Select-Object ProcessId,ParentProcessId,Name,CommandLine | Format-List | Out-File 'C:\sqlxpcmd\processcheck.txt'"
+
+
+powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,Name,CommandLine | Out-File 'C:\sqlxpcmd\processcheck.txt'"
