@@ -1,0 +1,1 @@
+powershell.exe  -NoProfile -ExecutionPolicy Bypass -File "c:\sqlxpcmd\terminator.ps1"  -SqlServer  "A5CD349L23V\propelrx"  -Database "Nexxsys"
