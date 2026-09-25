@@ -154,6 +154,64 @@ function Get-ProcessOwner {
     return $null
 }
 
+function Get-DescendantProcessIds {
+    param(
+        [object[]]$Processes,
+        [int]$RootProcessId
+    )
+
+    $childrenByParent = @{}
+    foreach ($item in $Processes) {
+        $parentId = [int]$item.ParentProcessId
+        if (-not $childrenByParent.ContainsKey($parentId)) {
+            $childrenByParent[$parentId] = New-Object System.Collections.Generic.List[int]
+        }
+        $childrenByParent[$parentId].Add([int]$item.ProcessId)
+    }
+
+    $result = New-Object 'System.Collections.Generic.HashSet[int]'
+    $queue = New-Object 'System.Collections.Generic.Queue[int]'
+    $queue.Enqueue($RootProcessId)
+
+    while ($queue.Count -gt 0) {
+        $parentId = $queue.Dequeue()
+        if (-not $childrenByParent.ContainsKey($parentId)) { continue }
+        foreach ($childId in $childrenByParent[$parentId]) {
+            if ($result.Add($childId)) { $queue.Enqueue($childId) }
+        }
+    }
+
+    return ,$result
+}
+
+function Test-ProcessIdentityUnchanged {
+    param(
+        [int]$ProcessId,
+        [datetime]$ExpectedCreationDate,
+        [string]$ExpectedName,
+        [string]$ExpectedOwner
+    )
+
+    $current = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId"
+    if ($null -eq $current) { return $null }
+
+    $currentStart = [datetime]$current.CreationDate
+    if ([Math]::Abs(($currentStart - $ExpectedCreationDate).TotalSeconds) -gt 1) {
+        throw "PID $ProcessId creation time changed; possible PID reuse."
+    }
+    if (-not ([string]$current.Name).Equals($ExpectedName,[System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "PID $ProcessId process name changed."
+    }
+
+    $currentOwner = Get-ProcessOwner -Process $current
+    if ([string]::IsNullOrWhiteSpace($currentOwner) -or
+        -not $currentOwner.Equals($ExpectedOwner,[System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "PID $ProcessId Windows owner changed or could not be verified."
+    }
+
+    return $current
+}
+
 $conn = $null
 
 try {
@@ -247,6 +305,7 @@ ORDER BY CandidateId;
 SELECT
     r.session_id,
     r.start_time,
+    CONVERT(int,SERVERPROPERTY('ProcessID')) AS SqlServerProcessId,
     DATEDIFF(MINUTE,r.start_time,SYSDATETIME()) AS RuntimeMinutes,
     r.wait_type,
     s.open_transaction_count,
@@ -275,6 +334,7 @@ WHERE r.session_id=$sessionId;
             $waitType = if ($lr.IsNull("wait_type")) { "" } else { [string]$lr.wait_type }
             $openTran = [int]$lr.open_transaction_count
             $blockedCount = [int]$lr.BlockedSessionCount
+            $sqlServerProcessId = [int]$lr.SqlServerProcessId
 
             if ($runtime -lt $minimumRuntime) {
                 $msg = "SQL session no longer exceeds configured runtime threshold."
@@ -298,20 +358,28 @@ WHERE r.session_id=$sessionId;
             }
 
             $allProcesses = @(Get-CimInstance Win32_Process)
+            $sqlDescendantIds = Get-DescendantProcessIds -Processes $allProcesses -RootProcessId $sqlServerProcessId
             $matches = @()
 
             foreach ($rule in $rules.Rows) {
                 $ruleProcess = ([string]$rule["ProcessName"]).Trim()
-                $ruleContains = ([string]$rule["CommandLineContains"]).Trim()
+                if (-not $ruleProcess.EndsWith('.exe',[System.StringComparison]::OrdinalIgnoreCase)) {
+                    $ruleProcess += '.exe'
+                }
+                $ruleContains = if ($rule.IsNull("CommandLineContains")) { "" } else { ([string]$rule["CommandLineContains"]).Trim() }
 
                 $ruleMatches = @(
                     $allProcesses | Where-Object {
-                        $_.Name -ieq $ruleProcess -and
-                        -not [string]::IsNullOrWhiteSpace($_.CommandLine) -and
-                        $_.CommandLine.IndexOf(
-                            $ruleContains,
-                            [System.StringComparison]::OrdinalIgnoreCase
-                        ) -ge 0
+                        $isSqlDescendant = $sqlDescendantIds.Contains([int]$_.ProcessId)
+                        $nameMatches = ([string]$_.Name).Equals($ruleProcess,[System.StringComparison]::OrdinalIgnoreCase)
+                        $commandMatches = if ([string]::IsNullOrWhiteSpace($ruleContains)) {
+                            $true
+                        } elseif ([string]::IsNullOrWhiteSpace([string]$_.CommandLine)) {
+                            $false
+                        } else {
+                            ([string]$_.CommandLine).IndexOf($ruleContains,[System.StringComparison]::OrdinalIgnoreCase) -ge 0
+                        }
+                        $isSqlDescendant -and $nameMatches -and $commandMatches
                     }
                 )
 
@@ -330,9 +398,14 @@ WHERE r.session_id=$sessionId;
             )
 
             if ($matches.Count -eq 0) {
-                $msg = "No Windows process matched an enabled termination rule."
+                $descendantSummary = @(
+                    $allProcesses |
+                    Where-Object { $sqlDescendantIds.Contains([int]$_.ProcessId) } |
+                    Select-Object ProcessId,ParentProcessId,Name,CreationDate,CommandLine
+                ) | ConvertTo-Json -Compress -Depth 3
+                $msg = "No SQL Server descendant process matched an enabled termination rule. SqlServerPID=$sqlServerProcessId."
                 Set-CandidateStatus -Connection $conn -CandidateId $candidateId -Status "ValidationFailed" -ValidationMessage $msg -ResultMessage $msg
-                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "ValidationFailed" -SessionId $sessionId -Message $msg
+                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "ValidationFailed" -SessionId $sessionId -Message $msg -DetailsJson $descendantSummary
                 continue
             }
 
@@ -407,6 +480,10 @@ WHERE CandidateId=@CandidateId
             Write-Audit -Connection $conn -CandidateId $candidateId -EventType "TerminationRequested" -SessionId $sessionId -ProcessId $pid -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message "Termination requested for validated Windows process."
 
             try {
+                $revalidated = Test-ProcessIdentityUnchanged -ProcessId $pid -ExpectedCreationDate $processStart -ExpectedName $processName -ExpectedOwner $owner
+                if ($null -eq $revalidated) {
+                    throw "PID $pid exited before termination."
+                }
                 Stop-Process -Id $pid -Force -ErrorAction Stop
                 Start-Sleep -Seconds 2
 
