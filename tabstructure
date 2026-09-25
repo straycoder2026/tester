@@ -1,0 +1,37 @@
+USE Nexxsys;
+GO
+
+IF COL_LENGTH('dbo.XpCmdShellTerminationCandidate', 'ValidationMessage') IS NULL
+BEGIN
+    ALTER TABLE dbo.XpCmdShellTerminationCandidate
+    ADD ValidationMessage NVARCHAR(2000) NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.XpCmdShellTerminationCandidate', 'ResultMessage') IS NULL
+BEGIN
+    ALTER TABLE dbo.XpCmdShellTerminationCandidate
+    ADD ResultMessage NVARCHAR(2000) NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.XpCmdShellTerminationCandidate', 'ProcessCommandLine') IS NULL
+BEGIN
+    ALTER TABLE dbo.XpCmdShellTerminationCandidate
+    ADD ProcessCommandLine NVARCHAR(MAX) NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.XpCmdShellTerminationCandidate', 'ProcessStartTime') IS NULL
+BEGIN
+    ALTER TABLE dbo.XpCmdShellTerminationCandidate
+    ADD ProcessStartTime DATETIME2(0) NULL;
+END;
+GO
+
+IF COL_LENGTH('dbo.XpCmdShellTerminationCandidate', 'WindowsAccount') IS NULL
+BEGIN
+    ALTER TABLE dbo.XpCmdShellTerminationCandidate
+    ADD WindowsAccount NVARCHAR(256) NULL;
+END;
+GO
