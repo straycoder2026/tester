@@ -397,7 +397,7 @@ WHERE r.session_id=$sessionId;
             $chosen = $timeMatches[0]
             $p = $chosen.Process
 
-            $pid = [int]$p.ProcessId
+            $targetProcessId = [int]$p.ProcessId
             $parentPid = [int]$p.ParentProcessId
             $processName = [string]$p.Name
             $commandLine = [string]$p.CommandLine
@@ -419,7 +419,7 @@ SET
 WHERE CandidateId=@CandidateId
   AND Status='PendingValidation';
 "@ -Parameters @{
-                "@ProcessId"=$pid
+                "@ProcessId"=$targetProcessId
                 "@ParentProcessId"=$parentPid
                 "@ProcessName"=$processName
                 "@ProcessStartTime"=$processStart
@@ -434,27 +434,27 @@ WHERE CandidateId=@CandidateId
                 ProcessStartTime=$processStart
             } | ConvertTo-Json -Compress
 
-            Write-Audit -Connection $conn -CandidateId $candidateId -EventType "ValidationPassed" -SessionId $sessionId -ProcessId $pid -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuntimeMinutes $runtime -WaitType $waitType -OpenTransactionCount $openTran -BlockedSessionCount $blockedCount -RuleName $ruleName -Message "Windows process validation passed." -DetailsJson $details
+            Write-Audit -Connection $conn -CandidateId $candidateId -EventType "ValidationPassed" -SessionId $sessionId -ProcessId $targetProcessId -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuntimeMinutes $runtime -WaitType $waitType -OpenTransactionCount $openTran -BlockedSessionCount $blockedCount -RuleName $ruleName -Message "Windows process validation passed." -DetailsJson $details
 
             if ($dryRun) {
                 Set-CandidateStatus -Connection $conn -CandidateId $candidateId -Status "DryRunValidated" -ResultMessage "DRY RUN: process validated; termination not executed."
-                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "DryRunValidated" -SessionId $sessionId -ProcessId $pid -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message "DRY RUN: validated; no termination executed."
+                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "DryRunValidated" -SessionId $sessionId -ProcessId $targetProcessId -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message "DRY RUN: validated; no termination executed."
                 continue
             }
 
             Set-CandidateStatus -Connection $conn -CandidateId $candidateId -Status "TerminationRequested"
-            Write-Audit -Connection $conn -CandidateId $candidateId -EventType "TerminationRequested" -SessionId $sessionId -ProcessId $pid -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message "Termination requested for validated Windows process."
+            Write-Audit -Connection $conn -CandidateId $candidateId -EventType "TerminationRequested" -SessionId $sessionId -ProcessId $targetProcessId -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message "Termination requested for validated Windows process."
 
             try {
-                $revalidated = Test-ProcessIdentityUnchanged -ProcessId $pid -ExpectedCreationDate $processStart -ExpectedName $processName -ExpectedOwner $owner
+                $revalidated = Test-ProcessIdentityUnchanged -ProcessId $targetProcessId -ExpectedCreationDate $processStart -ExpectedName $processName -ExpectedOwner $owner
                 if ($null -eq $revalidated) {
-                    throw "PID $pid exited before termination."
+                    throw "PID $targetProcessId exited before termination."
                 }
-                Stop-Process -Id $pid -Force -ErrorAction Stop
+                Stop-Process -Id $targetProcessId -Force -ErrorAction Stop
                 Start-Sleep -Seconds 2
 
-                if (Get-Process -Id $pid -ErrorAction SilentlyContinue) {
-                    throw "PID $pid is still running after Stop-Process."
+                if (Get-Process -Id $targetProcessId -ErrorAction SilentlyContinue) {
+                    throw "PID $targetProcessId is still running after Stop-Process."
                 }
 
                 Invoke-SqlNonQuery -Connection $conn -Sql @"
@@ -466,17 +466,17 @@ SET
 WHERE CandidateId=@CandidateId;
 "@ -Parameters @{
                     "@CandidateId"=$candidateId
-                    "@ResultMessage"="Validated process PID $pid terminated successfully."
+                    "@ResultMessage"="Validated process PID $targetProcessId terminated successfully."
                 }
 
-                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "TerminationSucceeded" -SessionId $sessionId -ProcessId $pid -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message "Validated Windows process terminated successfully."
+                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "TerminationSucceeded" -SessionId $sessionId -ProcessId $targetProcessId -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message "Validated Windows process terminated successfully."
 
-                Write-Host "SUCCESS: Candidate=$candidateId PID=$pid terminated."
+                Write-Host "SUCCESS: Candidate=$candidateId PID=$targetProcessId terminated."
             }
             catch {
-                $msg = "Termination failed for PID $pid. $($_.Exception.Message)"
+                $msg = "Termination failed for PID $targetProcessId. $($_.Exception.Message)"
                 Set-CandidateStatus -Connection $conn -CandidateId $candidateId -Status "TerminationFailed" -ResultMessage $msg
-                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "TerminationFailed" -SessionId $sessionId -ProcessId $pid -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message $msg
+                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "TerminationFailed" -SessionId $sessionId -ProcessId $targetProcessId -ParentProcessId $parentPid -ProcessName $processName -WindowsAccount $owner -RuleName $ruleName -Message $msg
                 Write-Host "FAILED: $msg"
             }
         }
