@@ -31,3 +31,1216 @@ while ($reader.Read()) {
 
 $reader.Close()
 $conn.Close()
+
+
+<#
+====================================================================
+ Safe xp_cmdshell Long-Running Process Terminator
+====================================================================
+
+Purpose:
+    Processes PendingValidation rows created by
+    dbo.usp_DetectLongRunningXpCmdShell.
+
+Safety:
+    - Never terminates by process name alone.
+    - Requires an enabled process rule.
+    - Requires exactly one process match.
+    - Revalidates SQL session before termination.
+    - Revalidates configured runtime threshold.
+    - Uses process creation time as an additional correlation check.
+    - Supports DryRun.
+    - Limits number of terminations per cycle.
+    - Writes append-only audit events.
+
+Required SQL objects:
+    dbo.XpCmdShellTerminationConfig
+    dbo.XpCmdShellTerminationRule
+    dbo.XpCmdShellTerminationCandidate
+    dbo.XpCmdShellTerminationAudit
+    dbo.usp_WriteXpCmdShellTerminationAudit
+====================================================================
+#>
+
+[CmdletBinding()]
+param
+(
+    [Parameter(Mandatory = $true)]
+    [string] $SqlServer,
+
+    [Parameter(Mandatory = $true)]
+    [string] $Database
+)
+
+$ErrorActionPreference = "Stop"
+
+
+# ================================================================
+# SQL CONNECTION
+# ================================================================
+
+function New-SqlConnection
+{
+    param
+    (
+        [string] $Server,
+        [string] $Db
+    )
+
+    $connectionString =
+        "Server=$Server;" +
+        "Database=$Db;" +
+        "Integrated Security=SSPI;" +
+        "Application Name=XpCmdShellSafeTerminator;" +
+        "TrustServerCertificate=True;"
+
+    $connection =
+        New-Object System.Data.SqlClient.SqlConnection $connectionString
+
+    $connection.Open()
+
+    return $connection
+}
+
+
+# ================================================================
+# RETURN SQL RESULT AS DATATABLE
+#
+# IMPORTANT:
+# return ,$table prevents PowerShell from unrolling the DataTable.
+# This fixes the previous:
+#
+# "No configuration row exists"
+#
+# issue even though the row actually existed.
+# ================================================================
+
+function Invoke-SqlTable
+{
+    param
+    (
+        [System.Data.SqlClient.SqlConnection] $Connection,
+        [string] $Sql
+    )
+
+    $command = $Connection.CreateCommand()
+
+    $command.CommandText = $Sql
+    $command.CommandTimeout = 30
+
+    $adapter =
+        New-Object System.Data.SqlClient.SqlDataAdapter $command
+
+    $table =
+        New-Object System.Data.DataTable
+
+    [void] $adapter.Fill($table)
+
+    return ,$table
+}
+
+
+# ================================================================
+# EXECUTE SQL UPDATE / PROCEDURE
+# ================================================================
+
+function Invoke-SqlNonQuery
+{
+    param
+    (
+        [System.Data.SqlClient.SqlConnection] $Connection,
+        [string] $Sql,
+        [hashtable] $Parameters
+    )
+
+    $command = $Connection.CreateCommand()
+
+    $command.CommandText = $Sql
+    $command.CommandTimeout = 30
+
+    if ($null -ne $Parameters)
+    {
+        foreach ($key in $Parameters.Keys)
+        {
+            $value = $Parameters[$key]
+
+            if ($null -eq $value)
+            {
+                $value = [DBNull]::Value
+            }
+
+            [void] $command.Parameters.AddWithValue(
+                $key,
+                $value
+            )
+        }
+    }
+
+    [void] $command.ExecuteNonQuery()
+}
+
+
+# ================================================================
+# AUDIT EVENT
+# ================================================================
+
+function Write-Audit
+{
+    param
+    (
+        [System.Data.SqlClient.SqlConnection] $Connection,
+
+        [long] $CandidateId,
+
+        [string] $EventType,
+
+        [object] $SessionId = $null,
+
+        [object] $ProcessId = $null,
+
+        [object] $ParentProcessId = $null,
+
+        [string] $ProcessName = $null,
+
+        [string] $WindowsAccount = $null,
+
+        [object] $RuntimeMinutes = $null,
+
+        [string] $WaitType = $null,
+
+        [object] $OpenTransactionCount = $null,
+
+        [object] $BlockedSessionCount = $null,
+
+        [string] $RuleName = $null,
+
+        [string] $Message = $null,
+
+        [string] $DetailsJson = $null
+    )
+
+    $performedBy =
+        [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+
+
+    Invoke-SqlNonQuery `
+        -Connection $Connection `
+        -Sql @"
+EXEC dbo.usp_WriteXpCmdShellTerminationAudit
+
+      @CandidateId          = @CandidateId
+    , @EventType            = @EventType
+    , @SessionId            = @SessionId
+    , @ProcessId            = @ProcessId
+    , @ParentProcessId      = @ParentProcessId
+    , @ProcessName          = @ProcessName
+    , @WindowsAccount       = @WindowsAccount
+    , @RuntimeMinutes       = @RuntimeMinutes
+    , @WaitType             = @WaitType
+    , @OpenTransactionCount = @OpenTransactionCount
+    , @BlockedSessionCount  = @BlockedSessionCount
+    , @RuleName             = @RuleName
+    , @PerformedBy          = @PerformedBy
+    , @Message              = @Message
+    , @DetailsJson          = @DetailsJson;
+"@ `
+        -Parameters @{
+            "@CandidateId"          = $CandidateId
+            "@EventType"            = $EventType
+            "@SessionId"            = $SessionId
+            "@ProcessId"            = $ProcessId
+            "@ParentProcessId"      = $ParentProcessId
+            "@ProcessName"          = $ProcessName
+            "@WindowsAccount"       = $WindowsAccount
+            "@RuntimeMinutes"       = $RuntimeMinutes
+            "@WaitType"             = $WaitType
+            "@OpenTransactionCount" = $OpenTransactionCount
+            "@BlockedSessionCount"  = $BlockedSessionCount
+            "@RuleName"             = $RuleName
+            "@PerformedBy"          = $performedBy
+            "@Message"              = $Message
+            "@DetailsJson"          = $DetailsJson
+        }
+}
+
+
+# ================================================================
+# UPDATE CANDIDATE STATUS
+# ================================================================
+
+function Set-CandidateStatus
+{
+    param
+    (
+        [System.Data.SqlClient.SqlConnection] $Connection,
+
+        [long] $CandidateId,
+
+        [string] $Status,
+
+        [string] $ValidationMessage = $null,
+
+        [string] $ResultMessage = $null
+    )
+
+
+    Invoke-SqlNonQuery `
+        -Connection $Connection `
+        -Sql @"
+UPDATE dbo.XpCmdShellTerminationCandidate
+
+SET
+      Status = @Status
+
+    , ValidationMessage =
+        CASE
+            WHEN @ValidationMessage IS NULL
+                THEN ValidationMessage
+            ELSE @ValidationMessage
+        END
+
+    , ResultMessage =
+        CASE
+            WHEN @ResultMessage IS NULL
+                THEN ResultMessage
+            ELSE @ResultMessage
+        END
+
+WHERE CandidateId = @CandidateId;
+"@ `
+        -Parameters @{
+            "@Status"            = $Status
+            "@ValidationMessage" = $ValidationMessage
+            "@ResultMessage"     = $ResultMessage
+            "@CandidateId"       = $CandidateId
+        }
+}
+
+
+# ================================================================
+# GET PROCESS OWNER
+# ================================================================
+
+function Get-ProcessOwner
+{
+    param
+    (
+        [Microsoft.Management.Infrastructure.CimInstance] $Process
+    )
+
+    try
+    {
+        $owner =
+            Invoke-CimMethod `
+                -InputObject $Process `
+                -MethodName GetOwner
+
+        if ($owner.ReturnValue -eq 0)
+        {
+            if ([string]::IsNullOrWhiteSpace($owner.Domain))
+            {
+                return $owner.User
+            }
+
+            return "$($owner.Domain)\$($owner.User)"
+        }
+    }
+    catch
+    {
+        return $null
+    }
+
+    return $null
+}
+
+
+
+# ================================================================
+# MAIN
+# ================================================================
+
+$connection = $null
+
+try
+{
+    Write-Host ""
+    Write-Host "============================================="
+    Write-Host " Safe xp_cmdshell Process Terminator"
+    Write-Host "============================================="
+
+    Write-Host "SQL Server : $SqlServer"
+    Write-Host "Database   : $Database"
+    Write-Host ""
+
+
+    # ------------------------------------------------------------
+    # CONNECT
+    # ------------------------------------------------------------
+
+    $connection =
+        New-SqlConnection `
+            -Server $SqlServer `
+            -Db $Database
+
+
+    Write-Host "SQL connection successful."
+
+
+    # ------------------------------------------------------------
+    # READ CONFIGURATION
+    # ------------------------------------------------------------
+
+    $config =
+        Invoke-SqlTable `
+            -Connection $connection `
+            -Sql @"
+SELECT TOP (1)
+
+      Enabled
+    , MinimumRuntimeMinutes
+    , RequireOpenTransaction
+    , RequireBlocking
+    , MaxTerminationsPerCycle
+    , ProcessStartToleranceMinutes
+    , DryRun
+
+FROM dbo.XpCmdShellTerminationConfig
+
+ORDER BY ConfigId DESC;
+"@
+
+
+    if ($config.Rows.Count -eq 0)
+    {
+        throw "No configuration row exists."
+    }
+
+
+    $cfg = $config.Rows[0]
+
+
+    $enabled =
+        [bool] $cfg.Enabled
+
+    $minimumRuntime =
+        [int] $cfg.MinimumRuntimeMinutes
+
+    $requireOpenTransaction =
+        [bool] $cfg.RequireOpenTransaction
+
+    $requireBlocking =
+        [bool] $cfg.RequireBlocking
+
+    $maxPerCycle =
+        [int] $cfg.MaxTerminationsPerCycle
+
+    $startTolerance =
+        [int] $cfg.ProcessStartToleranceMinutes
+
+    $dryRun =
+        [bool] $cfg.DryRun
+
+
+    Write-Host "Enabled                : $enabled"
+    Write-Host "Minimum runtime        : $minimumRuntime minutes"
+    Write-Host "Require transaction    : $requireOpenTransaction"
+    Write-Host "Require blocking       : $requireBlocking"
+    Write-Host "Maximum per cycle      : $maxPerCycle"
+    Write-Host "Start tolerance        : $startTolerance minutes"
+    Write-Host "DryRun                  : $dryRun"
+    Write-Host ""
+
+
+    if (-not $enabled)
+    {
+        Write-Host "Monitoring is disabled."
+        exit 0
+    }
+
+
+    if ($maxPerCycle -lt 1)
+    {
+        throw "MaxTerminationsPerCycle must be at least 1."
+    }
+
+
+    # ------------------------------------------------------------
+    # READ ENABLED TERMINATION RULES
+    # ------------------------------------------------------------
+
+    $rules =
+        Invoke-SqlTable `
+            -Connection $connection `
+            -Sql @"
+SELECT
+
+      RuleId
+    , RuleName
+    , ProcessName
+    , CommandLineContains
+
+FROM dbo.XpCmdShellTerminationRule
+
+WHERE Enabled = 1
+
+ORDER BY RuleId;
+"@
+
+
+    if ($rules.Rows.Count -eq 0)
+    {
+        Write-Host "No enabled termination rules."
+        exit 0
+    }
+
+
+    Write-Host "Enabled rules: $($rules.Rows.Count)"
+
+
+    # ------------------------------------------------------------
+    # READ PENDING CANDIDATES
+    # ------------------------------------------------------------
+
+    $candidateSql = @"
+SELECT TOP ($maxPerCycle)
+
+      CandidateId
+    , SessionId
+    , StartTime
+    , RuntimeMinutes
+    , WaitType
+    , OpenTransactionCount
+    , BlockedSessionCount
+    , CommandText
+
+FROM dbo.XpCmdShellTerminationCandidate
+
+WHERE Status = 'PendingValidation'
+
+ORDER BY CandidateId;
+"@
+
+
+    $candidates =
+        Invoke-SqlTable `
+            -Connection $connection `
+            -Sql $candidateSql
+
+
+    if ($candidates.Rows.Count -eq 0)
+    {
+        Write-Host "No PendingValidation candidates."
+        exit 0
+    }
+
+
+    Write-Host ""
+    Write-Host "Pending candidates: $($candidates.Rows.Count)"
+    Write-Host ""
+
+
+    # ============================================================
+    # PROCESS EACH CANDIDATE
+    # ============================================================
+
+    foreach ($candidate in $candidates.Rows)
+    {
+        $candidateId =
+            [long] $candidate.CandidateId
+
+        $sessionId =
+            [int] $candidate.SessionId
+
+
+        Write-Host "---------------------------------------------"
+        Write-Host "Candidate ID : $candidateId"
+        Write-Host "SQL Session  : $sessionId"
+        Write-Host "---------------------------------------------"
+
+
+        # --------------------------------------------------------
+        # AUDIT - VALIDATION STARTED
+        # --------------------------------------------------------
+
+        Write-Audit `
+            -Connection $connection `
+            -CandidateId $candidateId `
+            -EventType "ValidationStarted" `
+            -SessionId $sessionId `
+            -RuntimeMinutes $candidate.RuntimeMinutes `
+            -WaitType $candidate.WaitType `
+            -OpenTransactionCount $candidate.OpenTransactionCount `
+            -BlockedSessionCount $candidate.BlockedSessionCount `
+            -Message "PowerShell validation started."
+
+
+        # --------------------------------------------------------
+        # RECHECK SQL SESSION
+        # --------------------------------------------------------
+
+        $liveSql = @"
+SELECT
+
+      r.session_id
+    , r.start_time
+
+    , DATEDIFF
+      (
+          MINUTE,
+          r.start_time,
+          SYSDATETIME()
+      ) AS RuntimeMinutes
+
+    , r.wait_type
+
+    , s.open_transaction_count
+
+    , (
+        SELECT COUNT(*)
+
+        FROM sys.dm_exec_requests AS b
+
+        WHERE b.blocking_session_id = r.session_id
+
+      ) AS BlockedSessionCount
+
+    , txt.text AS SqlText
+
+FROM sys.dm_exec_requests AS r
+
+INNER JOIN sys.dm_exec_sessions AS s
+    ON s.session_id = r.session_id
+
+OUTER APPLY
+    sys.dm_exec_sql_text(r.sql_handle) AS txt
+
+WHERE r.session_id = $sessionId;
+"@
+
+
+        $live =
+            Invoke-SqlTable `
+                -Connection $connection `
+                -Sql $liveSql
+
+
+        if ($live.Rows.Count -ne 1)
+        {
+            $message =
+                "SQL session no longer exists. No termination performed."
+
+
+            Set-CandidateStatus `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -Status "ValidationFailed" `
+                -ValidationMessage $message `
+                -ResultMessage $message
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "ValidationFailed" `
+                -SessionId $sessionId `
+                -Message $message
+
+
+            Write-Host $message
+
+            continue
+        }
+
+
+        $liveRow = $live.Rows[0]
+
+
+        $runtime =
+            [int] $liveRow.RuntimeMinutes
+
+
+        if ($liveRow.IsNull("wait_type"))
+        {
+            $waitType = ""
+        }
+        else
+        {
+            $waitType =
+                [string] $liveRow.wait_type
+        }
+
+
+        $openTransactions =
+            [int] $liveRow.open_transaction_count
+
+
+        $blockedSessions =
+            [int] $liveRow.BlockedSessionCount
+
+
+        # --------------------------------------------------------
+        # RECHECK RUNTIME
+        # --------------------------------------------------------
+
+        if ($runtime -lt $minimumRuntime)
+        {
+            $message =
+                "SQL session no longer exceeds configured runtime threshold."
+
+
+            Set-CandidateStatus `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -Status "ValidationFailed" `
+                -ValidationMessage $message `
+                -ResultMessage $message
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "ValidationFailed" `
+                -SessionId $sessionId `
+                -RuntimeMinutes $runtime `
+                -WaitType $waitType `
+                -Message $message
+
+
+            continue
+        }
+
+
+        # --------------------------------------------------------
+        # RECHECK OPEN TRANSACTION IF REQUIRED
+        # --------------------------------------------------------
+
+        if
+        (
+            $requireOpenTransaction -and
+            $openTransactions -le 0
+        )
+        {
+            $message =
+                "Open transaction is required but none exists."
+
+
+            Set-CandidateStatus `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -Status "ValidationFailed" `
+                -ValidationMessage $message `
+                -ResultMessage $message
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "ValidationFailed" `
+                -SessionId $sessionId `
+                -Message $message
+
+
+            continue
+        }
+
+
+        # --------------------------------------------------------
+        # RECHECK BLOCKING IF REQUIRED
+        # --------------------------------------------------------
+
+        if
+        (
+            $requireBlocking -and
+            $blockedSessions -le 0
+        )
+        {
+            $message =
+                "Blocking is required but session is not currently blocking."
+
+
+            Set-CandidateStatus `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -Status "ValidationFailed" `
+                -ValidationMessage $message `
+                -ResultMessage $message
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "ValidationFailed" `
+                -SessionId $sessionId `
+                -Message $message
+
+
+            continue
+        }
+
+
+        # --------------------------------------------------------
+        # GET WINDOWS PROCESSES
+        # --------------------------------------------------------
+
+        $windowsProcesses =
+            @(Get-CimInstance Win32_Process)
+
+
+        $matches = @()
+
+
+        foreach ($rule in $rules.Rows)
+        {
+            $ruleProcessName =
+                [string] $rule.ProcessName
+
+            $commandContains =
+                [string] $rule.CommandLineContains
+
+
+            $ruleMatches =
+                @(
+                    $windowsProcesses |
+                    Where-Object
+                    {
+                        $_.Name -ieq $ruleProcessName `
+                        -and
+                        -not [string]::IsNullOrWhiteSpace($_.CommandLine) `
+                        -and
+                        $_.CommandLine.IndexOf
+                        (
+                            $commandContains,
+                            [System.StringComparison]::OrdinalIgnoreCase
+                        ) -ge 0
+                    }
+                )
+
+
+            foreach ($process in $ruleMatches)
+            {
+                $matches +=
+                    [PSCustomObject] @{
+                        Process  = $process
+                        RuleName = [string] $rule.RuleName
+                    }
+            }
+        }
+
+
+        # --------------------------------------------------------
+        # REMOVE DUPLICATE PID MATCHES
+        # --------------------------------------------------------
+
+        $matches =
+            @(
+                $matches |
+                Group-Object
+                {
+                    $_.Process.ProcessId
+                } |
+                ForEach-Object
+                {
+                    $_.Group |
+                    Select-Object -First 1
+                }
+            )
+
+
+        if ($matches.Count -eq 0)
+        {
+            $message =
+                "No Windows process matched an enabled termination rule."
+
+
+            Set-CandidateStatus `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -Status "ValidationFailed" `
+                -ValidationMessage $message `
+                -ResultMessage $message
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "ValidationFailed" `
+                -SessionId $sessionId `
+                -Message $message
+
+
+            Write-Host $message
+
+            continue
+        }
+
+
+        # --------------------------------------------------------
+        # PROCESS START-TIME CORRELATION
+        # --------------------------------------------------------
+
+        $sqlStart =
+            [datetime] $liveRow.start_time
+
+
+        $earliestProcessStart =
+            $sqlStart.AddMinutes(-1 * $startTolerance)
+
+
+        $latestProcessStart =
+            (Get-Date)
+
+
+        $timeMatches =
+            @(
+                $matches |
+                Where-Object
+                {
+                    if ($null -eq $_.Process.CreationDate)
+                    {
+                        return $false
+                    }
+
+
+                    $processCreated =
+                        [datetime] $_.Process.CreationDate
+
+
+                    return
+                    (
+                        $processCreated -ge $earliestProcessStart `
+                        -and
+                        $processCreated -le $latestProcessStart
+                    )
+                }
+            )
+
+
+        # --------------------------------------------------------
+        # FAIL CLOSED IF AMBIGUOUS
+        # --------------------------------------------------------
+
+        if ($timeMatches.Count -ne 1)
+        {
+            $message =
+                "Ambiguous Windows process correlation. " +
+                "Rule matches=$($matches.Count), " +
+                "time-correlated matches=$($timeMatches.Count). " +
+                "No process terminated."
+
+
+            Set-CandidateStatus `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -Status "ValidationFailed" `
+                -ValidationMessage $message `
+                -ResultMessage $message
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "ValidationFailed" `
+                -SessionId $sessionId `
+                -RuntimeMinutes $runtime `
+                -WaitType $waitType `
+                -OpenTransactionCount $openTransactions `
+                -BlockedSessionCount $blockedSessions `
+                -Message $message
+
+
+            Write-Host $message
+
+            continue
+        }
+
+
+        # --------------------------------------------------------
+        # EXACT PROCESS SELECTED
+        # --------------------------------------------------------
+
+        $selected =
+            $timeMatches[0]
+
+
+        $process =
+            $selected.Process
+
+
+        $ruleName =
+            [string] $selected.RuleName
+
+
+        $processId =
+            [int] $process.ProcessId
+
+
+        $parentProcessId =
+            [int] $process.ParentProcessId
+
+
+        $processName =
+            [string] $process.Name
+
+
+        $processCommandLine =
+            [string] $process.CommandLine
+
+
+        $processStartTime =
+            [datetime] $process.CreationDate
+
+
+        $processOwner =
+            Get-ProcessOwner `
+                -Process $process
+
+
+        # --------------------------------------------------------
+        # STORE VALIDATED PROCESS
+        # --------------------------------------------------------
+
+        Invoke-SqlNonQuery `
+            -Connection $connection `
+            -Sql @"
+UPDATE dbo.XpCmdShellTerminationCandidate
+
+SET
+
+      ProcessId          = @ProcessId
+    , ParentProcessId    = @ParentProcessId
+    , ProcessName        = @ProcessName
+    , ProcessStartTime   = @ProcessStartTime
+    , WindowsAccount     = @WindowsAccount
+    , ProcessCommandLine = @ProcessCommandLine
+
+    , Status             = 'Validated'
+    , ValidationMessage  = @ValidationMessage
+
+WHERE CandidateId = @CandidateId
+  AND Status = 'PendingValidation';
+"@ `
+            -Parameters @{
+                "@ProcessId"          = $processId
+                "@ParentProcessId"    = $parentProcessId
+                "@ProcessName"        = $processName
+                "@ProcessStartTime"   = $processStartTime
+                "@WindowsAccount"     = $processOwner
+                "@ProcessCommandLine" = $processCommandLine
+                "@ValidationMessage"  = "Validated by rule [$ruleName]."
+                "@CandidateId"        = $candidateId
+            }
+
+
+        # --------------------------------------------------------
+        # AUDIT VALIDATION SUCCESS
+        # --------------------------------------------------------
+
+        $details =
+            @{
+                CommandLine      = $processCommandLine
+                ProcessStartTime = $processStartTime
+            } |
+            ConvertTo-Json -Compress
+
+
+        Write-Audit `
+            -Connection $connection `
+            -CandidateId $candidateId `
+            -EventType "ValidationPassed" `
+            -SessionId $sessionId `
+            -ProcessId $processId `
+            -ParentProcessId $parentProcessId `
+            -ProcessName $processName `
+            -WindowsAccount $processOwner `
+            -RuntimeMinutes $runtime `
+            -WaitType $waitType `
+            -OpenTransactionCount $openTransactions `
+            -BlockedSessionCount $blockedSessions `
+            -RuleName $ruleName `
+            -Message "Windows process validation passed." `
+            -DetailsJson $details
+
+
+        Write-Host "Validated PID $processId ($processName)"
+
+
+        # --------------------------------------------------------
+        # DRY RUN
+        # --------------------------------------------------------
+
+        if ($dryRun)
+        {
+            Set-CandidateStatus `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -Status "DryRunValidated" `
+                -ResultMessage "DRY RUN: process validated; termination not executed."
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "DryRunValidated" `
+                -SessionId $sessionId `
+                -ProcessId $processId `
+                -ParentProcessId $parentProcessId `
+                -ProcessName $processName `
+                -WindowsAccount $processOwner `
+                -RuleName $ruleName `
+                -Message "DRY RUN: validation passed; process was not terminated."
+
+
+            Write-Host "DRY RUN - PID $processId not terminated."
+
+            continue
+        }
+
+
+        # --------------------------------------------------------
+        # TERMINATION REQUESTED
+        # --------------------------------------------------------
+
+        Set-CandidateStatus `
+            -Connection $connection `
+            -CandidateId $candidateId `
+            -Status "TerminationRequested"
+
+
+        Write-Audit `
+            -Connection $connection `
+            -CandidateId $candidateId `
+            -EventType "TerminationRequested" `
+            -SessionId $sessionId `
+            -ProcessId $processId `
+            -ParentProcessId $parentProcessId `
+            -ProcessName $processName `
+            -WindowsAccount $processOwner `
+            -RuleName $ruleName `
+            -Message "Termination requested for validated Windows process."
+
+
+        # --------------------------------------------------------
+        # TERMINATE EXACT PID
+        # --------------------------------------------------------
+
+        try
+        {
+            Write-Host "Terminating PID $processId..."
+
+
+            Stop-Process `
+                -Id $processId `
+                -Force `
+                -ErrorAction Stop
+
+
+            Start-Sleep -Seconds 2
+
+
+            $stillRunning =
+                Get-Process `
+                    -Id $processId `
+                    -ErrorAction SilentlyContinue
+
+
+            if ($stillRunning)
+            {
+                throw
+                    "PID $processId is still running after Stop-Process."
+            }
+
+
+            # ----------------------------------------------------
+            # SUCCESS
+            # ----------------------------------------------------
+
+            Invoke-SqlNonQuery `
+                -Connection $connection `
+                -Sql @"
+UPDATE dbo.XpCmdShellTerminationCandidate
+
+SET
+
+      Status = 'Terminated'
+    , TerminatedAt = SYSDATETIME()
+    , ResultMessage = @ResultMessage
+
+WHERE CandidateId = @CandidateId;
+"@ `
+                -Parameters @{
+                    "@CandidateId" =
+                        $candidateId
+
+                    "@ResultMessage" =
+                        "Validated process PID $processId terminated successfully."
+                }
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "TerminationSucceeded" `
+                -SessionId $sessionId `
+                -ProcessId $processId `
+                -ParentProcessId $parentProcessId `
+                -ProcessName $processName `
+                -WindowsAccount $processOwner `
+                -RuleName $ruleName `
+                -Message "Validated Windows process terminated successfully."
+
+
+            Write-Host "SUCCESS - PID $processId terminated."
+        }
+        catch
+        {
+            # ----------------------------------------------------
+            # FAILURE
+            # ----------------------------------------------------
+
+            $message =
+                "Termination failed for PID $processId. " +
+                $_.Exception.Message
+
+
+            Set-CandidateStatus `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -Status "TerminationFailed" `
+                -ResultMessage $message
+
+
+            Write-Audit `
+                -Connection $connection `
+                -CandidateId $candidateId `
+                -EventType "TerminationFailed" `
+                -SessionId $sessionId `
+                -ProcessId $processId `
+                -ParentProcessId $parentProcessId `
+                -ProcessName $processName `
+                -WindowsAccount $processOwner `
+                -RuleName $ruleName `
+                -Message $message
+
+
+            Write-Host "FAILED - $message"
+        }
+    }
+
+
+    Write-Host ""
+    Write-Host "Termination cycle completed."
+}
+catch
+{
+    Write-Error $_.Exception.Message
+
+    exit 1
+}
+finally
+{
+    if ($null -ne $connection)
+    {
+        $connection.Close()
+        $connection.Dispose()
+    }
+}
