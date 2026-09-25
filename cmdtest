@@ -5,3 +5,29 @@ Invoke-Sqlcmd -ServerInstance "A5CD349L23V\PROPELRX" -Database "Nexxsys" -Query 
 
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\sqlxpcmd\terminator.ps1" -SqlServer "A5CD349L23V\PROPELRX" -Database "Nexxsys"
+
+
+$cs = "Server=A5CD349L23V\PROPELRX;Database=Nexxsys;Integrated Security=SSPI;TrustServerCertificate=True;"
+
+$conn = New-Object System.Data.SqlClient.SqlConnection $cs
+$conn.Open()
+
+$cmd = $conn.CreateCommand()
+$cmd.CommandText = @"
+SELECT
+    @@SERVERNAME AS ServerName,
+    DB_NAME() AS DatabaseName,
+    COUNT(*) AS ConfigRows
+FROM dbo.XpCmdShellTerminationConfig;
+"@
+
+$reader = $cmd.ExecuteReader()
+
+while ($reader.Read()) {
+    Write-Host "Server     :" $reader["ServerName"]
+    Write-Host "Database   :" $reader["DatabaseName"]
+    Write-Host "ConfigRows :" $reader["ConfigRows"]
+}
+
+$reader.Close()
+$conn.Close()
