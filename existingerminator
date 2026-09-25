@@ -154,36 +154,6 @@ function Get-ProcessOwner {
     return $null
 }
 
-function Get-DescendantProcessIds {
-    param(
-        [object[]]$Processes,
-        [int]$RootProcessId
-    )
-
-    $childrenByParent = @{}
-    foreach ($item in $Processes) {
-        $parentId = [int]$item.ParentProcessId
-        if (-not $childrenByParent.ContainsKey($parentId)) {
-            $childrenByParent[$parentId] = New-Object System.Collections.Generic.List[int]
-        }
-        $childrenByParent[$parentId].Add([int]$item.ProcessId)
-    }
-
-    $result = New-Object 'System.Collections.Generic.HashSet[int]'
-    $queue = New-Object 'System.Collections.Generic.Queue[int]'
-    $queue.Enqueue($RootProcessId)
-
-    while ($queue.Count -gt 0) {
-        $parentId = $queue.Dequeue()
-        if (-not $childrenByParent.ContainsKey($parentId)) { continue }
-        foreach ($childId in $childrenByParent[$parentId]) {
-            if ($result.Add($childId)) { $queue.Enqueue($childId) }
-        }
-    }
-
-    return ,$result
-}
-
 function Test-ProcessIdentityUnchanged {
     param(
         [int]$ProcessId,
@@ -271,7 +241,8 @@ SELECT TOP ($maxPerCycle)
     WaitType,
     OpenTransactionCount,
     BlockedSessionCount,
-    CommandText
+    CommandText,
+    ProcessId
 FROM dbo.XpCmdShellTerminationCandidate
 WHERE Status='PendingValidation'
 ORDER BY CandidateId;
@@ -287,6 +258,7 @@ ORDER BY CandidateId;
     foreach ($candidate in $candidates.Rows) {
         $candidateId = [long]$candidate.CandidateId
         $sessionId = [int]$candidate.SessionId
+        $detectedProcessId = if ($candidate.IsNull("ProcessId")) { 0 } else { [int]$candidate.ProcessId }
 
         try {
             Write-Host "Processing Candidate=$candidateId Session=$sessionId"
@@ -305,7 +277,6 @@ ORDER BY CandidateId;
 SELECT
     r.session_id,
     r.start_time,
-    CONVERT(int,SERVERPROPERTY('ProcessID')) AS SqlServerProcessId,
     DATEDIFF(MINUTE,r.start_time,SYSDATETIME()) AS RuntimeMinutes,
     r.wait_type,
     s.open_transaction_count,
@@ -334,7 +305,6 @@ WHERE r.session_id=$sessionId;
             $waitType = if ($lr.IsNull("wait_type")) { "" } else { [string]$lr.wait_type }
             $openTran = [int]$lr.open_transaction_count
             $blockedCount = [int]$lr.BlockedSessionCount
-            $sqlServerProcessId = [int]$lr.SqlServerProcessId
 
             if ($runtime -lt $minimumRuntime) {
                 $msg = "SQL session no longer exceeds configured runtime threshold."
@@ -358,7 +328,6 @@ WHERE r.session_id=$sessionId;
             }
 
             $allProcesses = @(Get-CimInstance Win32_Process)
-            $sqlDescendantIds = Get-DescendantProcessIds -Processes $allProcesses -RootProcessId $sqlServerProcessId
             $matches = @()
 
             foreach ($rule in $rules.Rows) {
@@ -368,9 +337,14 @@ WHERE r.session_id=$sessionId;
                 }
                 $ruleContains = if ($rule.IsNull("CommandLineContains")) { "" } else { ([string]$rule["CommandLineContains"]).Trim() }
 
+                $processSearchSet = if ($detectedProcessId -gt 0) {
+                    @($allProcesses | Where-Object { [int]$_.ProcessId -eq $detectedProcessId })
+                } else {
+                    $allProcesses
+                }
+
                 $ruleMatches = @(
-                    $allProcesses | Where-Object {
-                        $isSqlDescendant = $sqlDescendantIds.Contains([int]$_.ProcessId)
+                    $processSearchSet | Where-Object {
                         $nameMatches = ([string]$_.Name).Equals($ruleProcess,[System.StringComparison]::OrdinalIgnoreCase)
                         $commandMatches = if ([string]::IsNullOrWhiteSpace($ruleContains)) {
                             $true
@@ -379,7 +353,7 @@ WHERE r.session_id=$sessionId;
                         } else {
                             ([string]$_.CommandLine).IndexOf($ruleContains,[System.StringComparison]::OrdinalIgnoreCase) -ge 0
                         }
-                        $isSqlDescendant -and $nameMatches -and $commandMatches
+                        $nameMatches -and $commandMatches
                     }
                 )
 
@@ -398,14 +372,13 @@ WHERE r.session_id=$sessionId;
             )
 
             if ($matches.Count -eq 0) {
-                $descendantSummary = @(
-                    $allProcesses |
-                    Where-Object { $sqlDescendantIds.Contains([int]$_.ProcessId) } |
-                    Select-Object ProcessId,ParentProcessId,Name,CreationDate,CommandLine
-                ) | ConvertTo-Json -Compress -Depth 3
-                $msg = "No SQL Server descendant process matched an enabled termination rule. SqlServerPID=$sqlServerProcessId."
+                $msg = if ($detectedProcessId -gt 0) {
+                    "Detected PID $detectedProcessId was not found or did not match an enabled database termination rule."
+                } else {
+                    "No Windows process matched an enabled database termination rule."
+                }
                 Set-CandidateStatus -Connection $conn -CandidateId $candidateId -Status "ValidationFailed" -ValidationMessage $msg -ResultMessage $msg
-                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "ValidationFailed" -SessionId $sessionId -Message $msg -DetailsJson $descendantSummary
+                Write-Audit -Connection $conn -CandidateId $candidateId -EventType "ValidationFailed" -SessionId $sessionId -Message $msg
                 continue
             }
 
