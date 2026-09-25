@@ -346,14 +346,7 @@ WHERE r.session_id=$sessionId;
                 $ruleMatches = @(
                     $processSearchSet | Where-Object {
                         $nameMatches = ([string]$_.Name).Equals($ruleProcess,[System.StringComparison]::OrdinalIgnoreCase)
-                        $commandMatches = if ([string]::IsNullOrWhiteSpace($ruleContains)) {
-                            $true
-                        } elseif ([string]::IsNullOrWhiteSpace([string]$_.CommandLine)) {
-                            $false
-                        } else {
-                            ([string]$_.CommandLine).IndexOf($ruleContains,[System.StringComparison]::OrdinalIgnoreCase) -ge 0
-                        }
-                        $nameMatches -and $commandMatches
+                        $nameMatches
                     }
                 )
 
