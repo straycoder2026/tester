@@ -1,0 +1,325 @@
+/*
+===============================================================
+ xp_cmdshell Safe Terminator - Duplicate Candidate Fix
+===============================================================
+
+Changes:
+1. Normalizes sys.dm_exec_requests.start_time to DATETIME2(0)
+   before comparing it with dbo.XpCmdShellTerminationCandidate.StartTime.
+2. Prevents reinserting the same SQL execution regardless of candidate status.
+3. Adds a unique index on (SessionId, StartTime) when no existing duplicates exist.
+4. Does NOT delete existing rows automatically.
+
+Run in the Nexxsys database.
+*/
+
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+GO
+
+/*==============================================================
+  1. REPLACE DETECTION PROCEDURE
+==============================================================*/
+CREATE OR ALTER PROCEDURE dbo.usp_DetectLongRunningXpCmdShell
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE
+          @Enabled                 bit
+        , @MinimumRuntimeMinutes   int
+        , @RequireOpenTransaction  bit
+        , @RequireBlocking         bit
+        , @DetectedAt              datetime2(0) = SYSDATETIME();
+
+    SELECT TOP (1)
+          @Enabled                 = Enabled
+        , @MinimumRuntimeMinutes   = MinimumRuntimeMinutes
+        , @RequireOpenTransaction  = RequireOpenTransaction
+        , @RequireBlocking         = RequireBlocking
+    FROM dbo.XpCmdShellTerminationConfig
+    ORDER BY ConfigId DESC;
+
+    IF ISNULL(@Enabled,0) = 0
+        RETURN;
+
+    IF @MinimumRuntimeMinutes IS NULL
+       OR @MinimumRuntimeMinutes < 0
+        RETURN;
+
+    DECLARE @Inserted TABLE
+    (
+        CandidateId          bigint,
+        SessionId            int,
+        RuntimeMinutes       int,
+        WaitType             nvarchar(120),
+        OpenTransactionCount int,
+        BlockedSessionCount  int
+    );
+
+    ;WITH ActiveRequests AS
+    (
+        SELECT
+              r.session_id
+            , r.request_id
+            , CONVERT(datetime2(0), r.start_time) AS NormalizedStartTime
+            , r.status
+            , r.command
+            , r.wait_type
+            , CONVERT(bigint, r.wait_time) AS wait_time
+            , r.wait_resource
+            , s.login_name
+            , s.host_name
+            , s.program_name
+            , s.open_transaction_count
+            , DB_NAME(r.database_id) AS DatabaseName
+            , DATEDIFF
+              (
+                  MINUTE,
+                  r.start_time,
+                  @DetectedAt
+              ) AS RuntimeMinutes
+            , txt.text AS SqlText
+        FROM sys.dm_exec_requests AS r
+        INNER JOIN sys.dm_exec_sessions AS s
+            ON s.session_id = r.session_id
+        OUTER APPLY
+            sys.dm_exec_sql_text(r.sql_handle) AS txt
+        WHERE
+            r.session_id <> @@SPID
+            AND s.is_user_process = 1
+    ),
+    BlockingInfo AS
+    (
+        SELECT
+              blocking_session_id AS SessionId
+            , COUNT(*) AS BlockedSessionCount
+        FROM sys.dm_exec_requests
+        WHERE blocking_session_id > 0
+        GROUP BY blocking_session_id
+    ),
+    CandidateRequests AS
+    (
+        SELECT
+              ar.session_id
+            , ar.request_id
+            , ar.NormalizedStartTime
+            , ar.RuntimeMinutes
+            , ar.DatabaseName
+            , ar.login_name
+            , ar.host_name
+            , ar.program_name
+            , ar.status
+            , ar.command
+            , ar.wait_type
+            , ar.wait_time
+            , ar.wait_resource
+            , ar.open_transaction_count
+            , ISNULL(bi.BlockedSessionCount,0) AS BlockedSessionCount
+            , ar.SqlText
+        FROM ActiveRequests AS ar
+        LEFT JOIN BlockingInfo AS bi
+            ON bi.SessionId = ar.session_id
+        WHERE
+            ar.RuntimeMinutes >= @MinimumRuntimeMinutes
+
+            AND
+            (
+                   ar.SqlText LIKE '%xp_cmdshell%'
+                OR ar.wait_type = 'PREEMPTIVE_OS_PIPEOPS'
+            )
+
+            AND
+            (
+                   @RequireOpenTransaction = 0
+                OR ar.open_transaction_count > 0
+            )
+
+            AND
+            (
+                   @RequireBlocking = 0
+                OR ISNULL(bi.BlockedSessionCount,0) > 0
+            )
+    )
+
+    INSERT dbo.XpCmdShellTerminationCandidate
+    (
+          SessionId
+        , RequestId
+        , DetectedAt
+        , StartTime
+        , RuntimeMinutes
+        , DatabaseName
+        , LoginName
+        , HostName
+        , ProgramName
+        , SqlStatus
+        , SqlCommand
+        , WaitType
+        , WaitTimeMs
+        , WaitResource
+        , OpenTransactionCount
+        , BlockedSessionCount
+        , CommandText
+        , Status
+    )
+    OUTPUT
+          inserted.CandidateId
+        , inserted.SessionId
+        , inserted.RuntimeMinutes
+        , inserted.WaitType
+        , inserted.OpenTransactionCount
+        , inserted.BlockedSessionCount
+    INTO @Inserted
+    SELECT
+          c.session_id
+        , c.request_id
+        , @DetectedAt
+        , c.NormalizedStartTime
+        , c.RuntimeMinutes
+        , c.DatabaseName
+        , c.login_name
+        , c.host_name
+        , c.program_name
+        , c.status
+        , c.command
+        , c.wait_type
+        , c.wait_time
+        , c.wait_resource
+        , c.open_transaction_count
+        , c.BlockedSessionCount
+        , c.SqlText
+        , 'PendingValidation'
+    FROM CandidateRequests AS c
+    WHERE NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.XpCmdShellTerminationCandidate AS existing
+        WHERE
+            existing.SessionId = c.session_id
+            AND existing.StartTime = c.NormalizedStartTime
+    );
+
+    /* Append-only detection audit */
+    INSERT dbo.XpCmdShellTerminationAudit
+    (
+          CandidateId
+        , EventType
+        , SessionId
+        , RuntimeMinutes
+        , WaitType
+        , OpenTransactionCount
+        , BlockedSessionCount
+        , PerformedBy
+        , Message
+    )
+    SELECT
+          CandidateId
+        , 'CandidateDetected'
+        , SessionId
+        , RuntimeMinutes
+        , WaitType
+        , OpenTransactionCount
+        , BlockedSessionCount
+        , SUSER_SNAME()
+        , 'Long-running xp_cmdshell candidate inserted with PendingValidation status.'
+    FROM @Inserted;
+END;
+GO
+
+
+/*==============================================================
+  2. CHECK FOR EXISTING DUPLICATES
+==============================================================*/
+
+IF EXISTS
+(
+    SELECT
+        SessionId,
+        StartTime
+    FROM dbo.XpCmdShellTerminationCandidate
+    WHERE StartTime IS NOT NULL
+    GROUP BY
+        SessionId,
+        StartTime
+    HAVING COUNT(*) > 1
+)
+BEGIN
+    PRINT 'Existing duplicate candidate rows were found.';
+    PRINT 'The procedure has been fixed, but the unique index was NOT created.';
+    PRINT 'Review the rows returned below before deleting or consolidating anything.';
+
+    SELECT
+          SessionId
+        , StartTime
+        , COUNT(*) AS DuplicateCount
+    FROM dbo.XpCmdShellTerminationCandidate
+    WHERE StartTime IS NOT NULL
+    GROUP BY
+          SessionId
+        , StartTime
+    HAVING COUNT(*) > 1
+    ORDER BY
+          SessionId
+        , StartTime;
+
+    PRINT 'After duplicates are reviewed/cleaned, rerun the unique-index section.';
+END
+ELSE
+BEGIN
+    /*==========================================================
+      3. DATABASE-LEVEL DUPLICATE PROTECTION
+    ==========================================================*/
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM sys.indexes
+        WHERE
+            object_id = OBJECT_ID('dbo.XpCmdShellTerminationCandidate')
+            AND name = 'UX_XpCmdShellCandidate_Session_StartTime'
+    )
+    BEGIN
+        CREATE UNIQUE INDEX UX_XpCmdShellCandidate_Session_StartTime
+        ON dbo.XpCmdShellTerminationCandidate
+        (
+            SessionId,
+            StartTime
+        )
+        WHERE StartTime IS NOT NULL;
+
+        PRINT 'Unique candidate index created successfully.';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Unique candidate index already exists.';
+    END
+END;
+GO
+
+
+/*==============================================================
+  4. VERIFICATION
+==============================================================*/
+
+SELECT TOP (1)
+      Enabled
+    , MinimumRuntimeMinutes
+    , RequireOpenTransaction
+    , RequireBlocking
+    , MaxTerminationsPerCycle
+    , ProcessStartToleranceMinutes
+    , DryRun
+FROM dbo.XpCmdShellTerminationConfig
+ORDER BY ConfigId DESC;
+GO
+
+SELECT
+      RuleId
+    , RuleName
+    , Enabled
+    , ProcessName
+    , CommandLineContains
+FROM dbo.XpCmdShellTerminationRule
+ORDER BY RuleId;
+GO
