@@ -1,0 +1,35 @@
+USE msdb;
+GO
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.sysjobs
+    WHERE name = N'Test Simple Agent Job'
+)
+BEGIN
+    EXEC dbo.sp_delete_job
+        @job_name = N'Test Simple Agent Job';
+END;
+GO
+
+EXEC dbo.sp_add_job
+    @job_name = N'Test Simple Agent Job',
+    @owner_login_name = N'sa';
+GO
+
+EXEC dbo.sp_add_jobstep
+    @job_name = N'Test Simple Agent Job',
+    @step_name = N'Test Step',
+    @subsystem = N'TSQL',
+    @database_name = N'master',
+    @command = N'SELECT GETDATE();';
+GO
+
+EXEC dbo.sp_add_jobserver
+    @job_name = N'Test Simple Agent Job';
+GO
+
+EXEC dbo.sp_start_job
+    @job_name = N'Test Simple Agent Job';
+GO
